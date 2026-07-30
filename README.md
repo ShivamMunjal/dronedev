@@ -193,6 +193,55 @@ $CLI -c port=SWD mode=POWERDOWN -halt -e all \
 
 ---
 
+## Using STM32CubeIDE (GUI)
+
+### Option A: Import as Makefile Project
+
+1. Open **STM32CubeIDE**
+2. **File → Import → General → Existing Projects into Workspace**
+3. Select the `PWM for EMAX` directory
+4. Right-click project → **Build Project** (uses the included Makefile)
+5. Right-click project → **Run As → STM32 C/C++ Application** to flash
+
+### Option B: Generate from .ioc (recommended for beginners)
+
+1. Open **STM32CubeIDE**
+2. **File → New → STM32 Project**
+3. Click **File...** (top-right) → browse to `PWM for EMAX/PWM for EMAX.ioc`
+4. Click **Finish** → CubeMX opens with the board configuration
+5. In CubeMX: **Project Manager → Toolchain/IDE → select STM32CubeIDE**
+6. Click **Project → Generate Code** (⚙️ icon)
+7. CubeIDE opens the generated project
+8. **Replace** `Core/Src/main.c` with our `Core/Src/main.c` from this repo
+9. **Replace** `Core/Inc/main.h` with our `Core/Inc/main.h`
+10. Add LL driver source files to the build:
+    - Right-click project → **Properties → C/C++ Build → Settings → MCU GCC Compiler → Includes**
+    - Ensure `USE_FULL_LL_DRIVER` is defined under **Preprocessor**
+    - Add these files to `Core/Src/` (or add to Makefile `C_SOURCES`):
+      ```
+      stm32c0xx_ll_usart.c
+      stm32c0xx_ll_gpio.c
+      stm32c0xx_ll_exti.c
+      stm32c0xx_ll_utils.c
+      stm32c0xx_ll_rcc.c
+      stm32c0xx_ll_tim.c
+      ```
+    (These are in `Drivers/STM32C0xx_HAL_Driver/Src/`)
+11. **Project → Build All** (Ctrl+B)
+12. Click **Run** (▶️) to flash and run
+
+### Option C: Command line (fastest)
+
+```bash
+cd "PWM for EMAX"
+make            # Build firmware
+make flash      # Flash via ST-LINK (POWERDOWN mode)
+```
+
+> ⚠️ **Important:** The linker script uses **30KB RAM** (not 32KB). Do not change `_estack` in `STM32C092RCTX_FLASH.ld`.
+
+---
+
 ## Project Structure
 
 ```
