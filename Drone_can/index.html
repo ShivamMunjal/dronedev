@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hobbywing X6 Plus - Live Telemetry</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap');
+
+        :root {
+            --bg-dark: #0f1115;
+            --panel-bg: rgba(255, 255, 255, 0.03);
+            --panel-border: rgba(255, 255, 255, 0.1);
+            --accent: #00ff88;
+            --accent-glow: rgba(0, 255, 136, 0.4);
+            --text-main: #ffffff;
+            --text-dim: #8b92a5;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: var(--text-main);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(0, 255, 136, 0.08), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 150, 255, 0.08), transparent 25%);
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            padding: 2rem;
+            box-sizing: border-box;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        .header h1 {
+            font-weight: 800;
+            font-size: 2.5rem;
+            margin: 0;
+            letter-spacing: -1px;
+            background: linear-gradient(90deg, #fff, #a5b4fc);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header p {
+            color: var(--text-dim);
+            margin-top: 0.5rem;
+            font-weight: 300;
+        }
+
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 1.5rem;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .card.rpm-card {
+            grid-column: span 2;
+            padding: 2.5rem;
+            border-color: rgba(0, 255, 136, 0.3);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.1) inset;
+        }
+
+        .card-label {
+            color: var(--text-dim);
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 0.5rem;
+        }
+
+        .card-value {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin: 0;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .rpm-card .card-value {
+            font-size: 5rem;
+            color: var(--accent);
+            text-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .unit {
+            font-size: 1rem;
+            color: var(--text-dim);
+            font-weight: 400;
+            margin-left: 0.2rem;
+        }
+
+        .control-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 20px;
+            padding: 2rem;
+            backdrop-filter: blur(10px);
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        input[type=range] {
+            -webkit-appearance: none;
+            width: 100%;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 28px;
+            width: 28px;
+            border-radius: 50%;
+            background: var(--accent);
+            cursor: pointer;
+            margin-top: -12px;
+            box-shadow: 0 0 15px var(--accent-glow);
+            transition: transform 0.1s;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .throttle-value {
+            font-size: 2rem;
+            font-weight: 800;
+            min-width: 100px;
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .estop-btn {
+            background: rgba(255, 50, 50, 0.1);
+            color: #ff4444;
+            border: 1px solid rgba(255, 50, 50, 0.3);
+            border-radius: 10px;
+            padding: 1rem;
+            font-size: 1.2rem;
+            font-weight: 800;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            transition: all 0.2s;
+        }
+
+        .estop-btn:hover {
+            background: rgba(255, 50, 50, 0.2);
+            box-shadow: 0 0 20px rgba(255, 50, 50, 0.2);
+        }
+
+        .estop-btn:active {
+            transform: scale(0.98);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Hobbywing X6 Plus</h1>
+            <p>DroneCAN Digital Control & Telemetry</p>
+        </div>
+
+        <div class="dashboard">
+            <div class="card rpm-card">
+                <div class="card-label">Motor Speed</div>
+                <div class="card-value" id="val-rpm">0</div>
+            </div>
+            <div class="card">
+                <div class="card-label">Voltage</div>
+                <div class="card-value"><span id="val-volts">0.0</span><span class="unit">V</span></div>
+            </div>
+            <div class="card">
+                <div class="card-label">Current</div>
+                <div class="card-value"><span id="val-amps">0.0</span><span class="unit">A</span></div>
+            </div>
+            <div class="card">
+                <div class="card-label">Temperature</div>
+                <div class="card-value"><span id="val-temp">0</span><span class="unit">°C</span></div>
+            </div>
+        </div>
+
+        <div class="control-panel">
+            <div class="card-label">Throttle Control</div>
+            <div class="slider-container">
+                <input type="range" id="throttle-slider" min="0" max="100" value="0" step="1">
+                <div class="throttle-value"><span id="val-throttle">0</span><span class="unit">%</span></div>
+            </div>
+            <button class="estop-btn" id="estop-btn">Emergency Stop</button>
+        </div>
+    </div>
+
+    <script>
+        const slider = document.getElementById('throttle-slider');
+        const throttleDisplay = document.getElementById('val-throttle');
+        const estopBtn = document.getElementById('estop-btn');
+        
+        const valRpm = document.getElementById('val-rpm');
+        const valVolts = document.getElementById('val-volts');
+        const valAmps = document.getElementById('val-amps');
+        const valTemp = document.getElementById('val-temp');
+
+        // Throttle Control
+        async function sendThrottle(value) {
+            try {
+                await fetch('/api/throttle', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ throttle: parseFloat(value) })
+                });
+            } catch (e) {
+                console.error("Failed to send throttle", e);
+            }
+        }
+
+        slider.addEventListener('input', (e) => {
+            throttleDisplay.innerText = e.target.value;
+            sendThrottle(e.target.value);
+        });
+
+        estopBtn.addEventListener('click', () => {
+            slider.value = 0;
+            throttleDisplay.innerText = "0";
+            sendThrottle(0);
+        });
+
+        // Telemetry Polling
+        async function updateTelemetry() {
+            try {
+                const res = await fetch('/api/telem');
+                if (res.ok) {
+                    const data = await res.json();
+                    valRpm.innerText = data.rpm;
+                    valVolts.innerText = data.voltage.toFixed(1);
+                    valAmps.innerText = data.current.toFixed(1);
+                    valTemp.innerText = data.temp;
+                    
+                    // Simple dynamic glow based on RPM
+                    if(data.rpm > 0) {
+                        valRpm.parentElement.style.boxShadow = `0 0 ${Math.min(50, 20 + data.rpm/200)}px rgba(0, 255, 136, 0.3) inset, 0 0 ${Math.min(30, data.rpm/300)}px rgba(0, 255, 136, 0.2)`;
+                    } else {
+                        valRpm.parentElement.style.boxShadow = '0 0 20px rgba(0, 255, 136, 0.1) inset';
+                    }
+                }
+            } catch (e) {
+                // Silently fail on network error to avoid spamming console
+            }
+        }
+
+        // Poll at 10Hz
+        setInterval(updateTelemetry, 100);
+    </script>
+</body>
+</html>

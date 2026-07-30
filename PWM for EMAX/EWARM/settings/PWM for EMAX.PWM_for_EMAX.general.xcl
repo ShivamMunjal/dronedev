@@ -1,0 +1,15 @@
+C:\iar\ewarm-9.60.3\arm\bin\armPROC.dll
+
+ C:\iar\ewarm-9.60.3\arm\bin\armSTLINK.dll
+
+ "C:\Users\gautamay\OneDrive - STMicroelectronics\Documents\learning\PWM for EMAX\EWARM\PWM for EMAX\Exe\PWM for EMAX.out"
+
+ --plugin=C:\iar\ewarm-9.60.3\arm\bin\armLibSupportUniversal.dll
+
+ --device_macro=C:\iar\ewarm-9.60.3\arm/config/debugger/ST/STM32C0xx.dmac
+
+ --flash_loader=C:\iar\ewarm-9.60.3\arm/config/flashloader/ST/FlashSTM32C092xC.board
+
+ 
+
+

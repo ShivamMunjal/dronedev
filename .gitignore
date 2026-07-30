@@ -1,0 +1,30 @@
+# Build artifacts
+build/
+*.o
+*.elf
+*.bin
+*.hex
+*.map
+
+# Node
+node_modules/
+npm-debug.log*
+
+# IAR EWARM build outputs
+EWARM/PWM for EMAX/Obj/
+EWARM/PWM for EMAX/Exe/
+EWARM/PWM for EMAX/BrowseInfo/
+EWARM/settings/
+
+# macOS
+.DS_Store
+
+# IDE
+*.uvguix.*
+*.bak
+
+# Temp
+/tmp/
+*.log
+__pycache__/
+*.pyc

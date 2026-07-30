@@ -1,0 +1,35 @@
+# ninja log v5
+0	674	7997509663782211	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/Core_13247989168731456611.dir/main.o	cde36de24238bcad
+3	1846	7997509944133388	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/Core_13247989168731456611.dir/stm32c0xx_hal_msp.o	8f80c5c6f6b47b78
+311	2279	7997509946691548	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_rcc.o	ba1571dd6032bb0f
+2285	3238	7997509957969222	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_rcc_ex.o	747ef52e45ab4f9a
+602	3576	7997509961434994	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_uart.o	9de1228a94fdc4af
+3243	3915	7997509962177841	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/EWARM_18443280873093131863.dir/startup_stm32c092xx.o	88c18b740bd27e65
+1852	4215	7997509966642678	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_tim_ex.o	5bfe9421967f51bc
+3580	4888	7997509974637538	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_usart_ex.o	d1de828acf609aeb
+3920	5200	7997509977070885	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_uart_ex.o	6409a90a6b6f9a28
+993	5483	7997509976095087	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_tim.o	bd145810151114d6
+4218	5835	7997509984101365	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_usart.o	f6f58a343ad5c20f
+5204	6408	7997509989706586	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/Core_13247989168731456611.dir/stm32c0xx_it.o	f41457afbedde2d2
+5839	6841	7997509994179345	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/CMSIS_6603591812247902717.dir/system_stm32c0xx.o	9f8a36a6f0f1f249
+5486	7141	7997509994975428	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_Nucleo_2348387969985868231.dir/stm32c0xx_nucleo.o	1e6732580ae25ece
+4892	7449	7997509997302315	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_adc.o	21043e0f72f777fa
+6411	8121	7997510006944594	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal.o	bd55c53a2d24e23f
+6844	8446	7997510007968788	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_exti.o	939bca6a03297266
+7146	8752	7997510007724583	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_cortex.o	e9763ffc524af48
+7452	9407	7997510019775081	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_adc_ex.o	a297b42ae6c17b63
+8449	9848	7997510024215623	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_dma_ex.o	ae313a1f0375fa17
+8125	10191	7997510026844273	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_dma.o	fc16fbaf53f6858d
+8756	10547	7997510025076037	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_pwr.o	2bd32bed99ac3319
+9852	11325	7997510038706953	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_pwr_ex.o	6255ab47a05995e8
+10195	11333	7997510038867493	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_flash.o	64774229b7d1848
+9411	11482	7997510040491026	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_gpio.o	56dfe7aa291f6951
+10552	11525	7997510040858858	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/STM32C0xx_HAL_Driver_13552679092417003011.dir/stm32c0xx_hal_flash_ex.o	596e89b3f86f2d24
+11529	12353	7997510049257936	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Exe/PWM for EMAX.out	9cf1d540082c8bbd
+12356	12466	7997510050620715	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Exe/PWM for EMAX.hex	74c58bded1690191
+12	691	7997511920103734	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/Core_13247989168731456611.dir/main.o	cde36de24238bcad
+695	948	7997511922551490	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Exe/PWM for EMAX.out	9cf1d540082c8bbd
+953	998	7997511923294819	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Exe/PWM for EMAX.hex	74c58bded1690191
+7	839	7997523088160673	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Obj/Core_13247989168731456611.dir/main.o	cde36de24238bcad
+842	1151	7997523091459199	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Exe/PWM for EMAX.out	9cf1d540082c8bbd
+1155	1204	7997523092136711	C:/Users/gautamay/OneDrive - STMicroelectronics/Documents/learning/PWM for EMAX/EWARM/PWM for EMAX/Exe/PWM for EMAX.hex	74c58bded1690191

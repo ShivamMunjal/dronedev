@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EMAX Ground Station</title>
+<style>
+  :root {
+    --bg: #0a0e17;
+    --panel: #111827;
+    --border: #1e293b;
+    --text: #e2e8f0;
+    --dim: #64748b;
+    --green: #22c55e;
+    --red: #ef4444;
+    --amber: #f59e0b;
+    --blue: #3b82f6;
+    --cyan: #06b6d4;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    user-select: none;
+  }
+
+  /* ── Header ─────────────────────────────── */
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+  }
+  header h1 { font-size: 16px; font-weight: 600; letter-spacing: 1px; }
+  header h1 span { color: var(--cyan); }
+  .status-bar { display: flex; gap: 16px; align-items: center; font-size: 12px; }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    display: inline-block; margin-right: 6px;
+  }
+  .status-dot.on { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .status-dot.off { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  /* ── Main Layout ────────────────────────── */
+  main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 320px;
+    gap: 0;
+    overflow: hidden;
+  }
+
+  /* ── Left: Throttle Control ─────────────── */
+  .control-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 24px;
+    padding: 32px;
+  }
+
+  /* Throttle display */
+  .throttle-display {
+    text-align: center;
+  }
+  .throttle-value {
+    font-size: 72px;
+    font-weight: 700;
+    color: var(--cyan);
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .throttle-unit { font-size: 14px; color: var(--dim); margin-top: 4px; }
+  .throttle-pct {
+    font-size: 24px;
+    color: var(--text);
+    margin-top: 8px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Slider container */
+  .slider-container {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    height: 300px;
+  }
+  .slider-labels {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    height: 100%;
+    font-size: 11px;
+    color: var(--dim);
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    writing-mode: vertical-lr;
+    direction: rtl;
+    width: 60px;
+    height: 300px;
+    background: transparent;
+    cursor: pointer;
+  }
+  input[type="range"]::-webkit-slider-runnable-track {
+    width: 12px;
+    border-radius: 6px;
+    background: linear-gradient(to top, #1e3a5f, var(--cyan));
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 40px;
+    height: 24px;
+    border-radius: 6px;
+    background: var(--text);
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 12px rgba(6,182,212,0.4);
+    margin-left: -14px;
+  }
+  input[type="range"]:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  input[type="range"]:disabled::-webkit-slider-thumb {
+    border-color: var(--dim);
+    box-shadow: none;
+  }
+
+  /* Motor state badge */
+  .motor-state {
+    padding: 8px 24px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+  }
+  .motor-state.disarmed { background: #1e293b; color: var(--dim); border: 1px solid var(--dim); }
+  .motor-state.armed { background: #052e16; color: var(--green); border: 1px solid var(--green); }
+  .motor-state.killed { background: #450a0a; color: var(--red); border: 1px solid var(--red); }
+
+  /* ── Buttons ────────────────────────────── */
+  .button-row {
+    display: flex;
+    gap: 12px;
+  }
+  button {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    padding: 14px 32px;
+    border: 2px solid;
+    border-radius: 10px;
+    cursor: pointer;
+    letter-spacing: 1px;
+    transition: all 0.15s;
+    background: transparent;
+  }
+  button:active { transform: scale(0.96); }
+  button:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .btn-arm {
+    color: var(--green);
+    border-color: var(--green);
+  }
+  .btn-arm:hover:not(:disabled) { background: #052e16; }
+
+  .btn-disarm {
+    color: var(--amber);
+    border-color: var(--amber);
+  }
+  .btn-disarm:hover:not(:disabled) { background: #451a03; }
+
+  .btn-estop {
+    color: #fff;
+    background: var(--red);
+    border-color: var(--red);
+    font-size: 16px;
+    padding: 16px 48px;
+    width: 100%;
+    max-width: 400px;
+  }
+  .btn-estop:hover { background: #dc2626; }
+
+  /* ── Right: Telemetry Panel ─────────────── */
+  .telemetry-panel {
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow-y: auto;
+  }
+  .telemetry-panel h2 {
+    font-size: 13px;
+    color: var(--dim);
+    text-transform: uppercase;
+    letter-spacing: 2px;
+  }
+  .telem-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+  .telem-card {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .telem-card .label { font-size: 10px; color: var(--dim); text-transform: uppercase; letter-spacing: 1px; }
+  .telem-card .value { font-size: 20px; font-weight: 700; margin-top: 4px; font-variant-numeric: tabular-nums; }
+
+  /* Log */
+  .log-container {
+    flex: 1;
+    min-height: 120px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    overflow-y: auto;
+    font-size: 11px;
+    line-height: 1.8;
+  }
+  .log-container .log-line { color: var(--dim); }
+  .log-container .log-line.event { color: var(--amber); }
+  .log-container .log-line.error { color: var(--red); }
+  .log-container .log-line.ok { color: var(--green); }
+
+  /* Shortcuts */
+  .shortcuts {
+    font-size: 10px;
+    color: var(--dim);
+    line-height: 2;
+  }
+  .shortcuts kbd {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-family: inherit;
+    font-size: 10px;
+  }
+
+  /* ── Footer ─────────────────────────────── */
+  footer {
+    padding: 8px 24px;
+    background: var(--panel);
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--dim);
+    display: flex;
+    justify-content: space-between;
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<header>
+  <h1>🚁 <span>EMAX</span> Ground Station</h1>
+  <div class="status-bar">
+    <span><span class="status-dot off" id="wsDot"></span>WebSocket</span>
+    <span><span class="status-dot off" id="serialDot"></span>NUCLEO</span>
+  </div>
+</header>
+
+<!-- Main -->
+<main>
+  <!-- Left: Controls -->
+  <div class="control-panel">
+    <div class="motor-state disarmed" id="stateBadge">DISARMED</div>
+
+    <div class="throttle-display">
+      <div class="throttle-value" id="throttleValue">1000</div>
+      <div class="throttle-unit">µs pulse width</div>
+      <div class="throttle-pct" id="throttlePct">0%</div>
+    </div>
+
+    <div class="slider-container">
+      <div class="slider-labels">
+        <span>2000</span><span>1750</span><span>1500</span><span>1250</span><span>1000</span>
+      </div>
+      <input type="range" id="throttleSlider" min="1000" max="2000" value="1000" step="10" disabled>
+    </div>
+
+    <div class="button-row">
+      <button class="btn-arm" id="btnArm" onclick="sendCmd('A')">⚡ ARM</button>
+      <button class="btn-disarm" id="btnDisarm" onclick="sendCmd('D')" disabled>🔒 DISARM</button>
+    </div>
+
+    <button class="btn-estop" onclick="emergencyStop()">🛑 EMERGENCY STOP</button>
+  </div>
+
+  <!-- Right: Telemetry -->
+  <div class="telemetry-panel">
+    <h2>Telemetry</h2>
+    <div class="telem-grid">
+      <div class="telem-card">
+        <div class="label">Throttle</div>
+        <div class="value" id="telemThrottle" style="color:var(--cyan)">1000µs</div>
+      </div>
+      <div class="telem-card">
+        <div class="label">State</div>
+        <div class="value" id="telemState" style="color:var(--dim)">DISARMED</div>
+      </div>
+      <div class="telem-card">
+        <div class="label">PWM Freq</div>
+        <div class="value">50 Hz</div>
+      </div>
+      <div class="telem-card">
+        <div class="label">ESC</div>
+        <div class="value" style="font-size:14px">Hobbywing 40A</div>
+      </div>
+    </div>
+
+    <h2>Event Log</h2>
+    <div class="log-container" id="logContainer"></div>
+
+    <h2>Keyboard Shortcuts</h2>
+    <div class="shortcuts">
+      <kbd>↑</kbd> / <kbd>↓</kbd> Throttle ±20µs<br>
+      <kbd>A</kbd> Arm &nbsp; <kbd>D</kbd> / <kbd>Space</kbd> Disarm<br>
+      <kbd>Esc</kbd> Emergency Stop
+    </div>
+  </div>
+</main>
+
+<!-- Footer -->
+<footer>
+  <span>NUCLEO-C092RC · TIM16_CH1 PA6 · USART2 115200</span>
+  <span id="clock"></span>
+</footer>
+
+<script>
+/* ── State ─────────────────────────────────── */
+let ws = null;
+let motorState = 0;  // 0=disarmed, 1=armed, 2=killed
+let currentThrottle = 1000;
+let sendThrottleTimer = null;
+
+const STATES = ['DISARMED', 'ARMED', 'KILLED'];
+const STATE_CLASSES = ['disarmed', 'armed', 'killed'];
+const STATE_COLORS = ['var(--dim)', 'var(--green)', 'var(--red)'];
+
+/* ── DOM refs ──────────────────────────────── */
+const slider = document.getElementById('throttleSlider');
+const throttleValue = document.getElementById('throttleValue');
+const throttlePct = document.getElementById('throttlePct');
+const stateBadge = document.getElementById('stateBadge');
+const btnArm = document.getElementById('btnArm');
+const btnDisarm = document.getElementById('btnDisarm');
+const telemThrottle = document.getElementById('telemThrottle');
+const telemState = document.getElementById('telemState');
+const wsDot = document.getElementById('wsDot');
+const serialDot = document.getElementById('serialDot');
+const logContainer = document.getElementById('logContainer');
+
+/* ── WebSocket ─────────────────────────────── */
+function connectWS() {
+    ws = new WebSocket(`ws://${location.host}`);
+
+    ws.onopen = () => {
+        wsDot.className = 'status-dot on';
+        addLog('WebSocket connected', 'ok');
+    };
+
+    ws.onclose = () => {
+        wsDot.className = 'status-dot off';
+        serialDot.className = 'status-dot off';
+        addLog('WebSocket disconnected — reconnecting...', 'error');
+        setTimeout(connectWS, 2000);
+    };
+
+    ws.onmessage = (evt) => {
+        try {
+            const msg = JSON.parse(evt.data);
+            handleMessage(msg);
+        } catch(e) {
+            // raw string from firmware
+            handleFirmwareLine(evt.data);
+        }
+    };
+}
+
+function handleMessage(msg) {
+    if (msg.type === 'serial') {
+        serialDot.className = msg.status === 'connected' ? 'status-dot on' : 'status-dot off';
+        addLog(`Serial: ${msg.status}${msg.port ? ' (' + msg.port + ')' : ''}`,
+               msg.status === 'connected' ? 'ok' : 'error');
+    }
+    else if (msg.type === 'telemetry') {
+        handleFirmwareLine(msg.data);
+    }
+}
+
+function handleFirmwareLine(line) {
+    line = line.trim();
+    if (!line) return;
+
+    if (line.startsWith('T')) {
+        /* Telemetry: T1500,1 */
+        const parts = line.substring(1).split(',');
+        if (parts.length >= 2) {
+            const ccr = parseInt(parts[0]);
+            const state = parseInt(parts[1]);
+            updateTelemetry(ccr, state);
+        }
+    }
+    else if (line === 'ARMED') {
+        setMotorState(1);
+        addLog('⚡ Motor ARMED', 'ok');
+    }
+    else if (line === 'DISARMED') {
+        setMotorState(0);
+        addLog('🔒 Motor DISARMED', 'event');
+    }
+    else if (line === 'KILLED') {
+        setMotorState(2);
+        addLog('🛑 KILL SWITCH ACTIVATED', 'error');
+    }
+    else if (line === 'TIMEOUT') {
+        setMotorState(0);
+        addLog('⏱ Watchdog timeout — auto-disarmed', 'error');
+    }
+}
+
+/* ── UI Updates ────────────────────────────── */
+function updateTelemetry(ccr, state) {
+    telemThrottle.textContent = ccr + 'µs';
+    if (state !== motorState) setMotorState(state);
+}
+
+let keepaliveTimer = null;
+
+function setMotorState(state) {
+    motorState = state;
+    stateBadge.textContent = STATES[state];
+    stateBadge.className = 'motor-state ' + STATE_CLASSES[state];
+    telemState.textContent = STATES[state];
+    telemState.style.color = STATE_COLORS[state];
+
+    const armed = (state === 1);
+    slider.disabled = !armed;
+    btnArm.disabled = armed || (state === 2);
+    btnDisarm.disabled = !armed;
+
+    /* Keepalive: send throttle every 400ms while armed to prevent watchdog */
+    if (keepaliveTimer) { clearInterval(keepaliveTimer); keepaliveTimer = null; }
+    if (armed) {
+        keepaliveTimer = setInterval(() => {
+            if (motorState === 1) sendCmd('S' + currentThrottle);
+        }, 400);
+    }
+
+    if (!armed) {
+        slider.value = 1000;
+        currentThrottle = 1000;
+        updateThrottleDisplay(1000);
+    }
+    if (state === 2) {
+        btnArm.disabled = true;
+    }
+}
+
+function updateThrottleDisplay(val) {
+    throttleValue.textContent = val;
+    const pct = Math.round(((val - 1000) / 1000) * 100);
+    throttlePct.textContent = pct + '%';
+}
+
+/* ── Commands ──────────────────────────────── */
+function sendCmd(cmd) {
+    if (ws && ws.readyState === 1) {
+        ws.send(cmd);
+    }
+}
+
+function emergencyStop() {
+    sendCmd('D');
+    slider.value = 1000;
+    currentThrottle = 1000;
+    updateThrottleDisplay(1000);
+    addLog('🛑 EMERGENCY STOP sent', 'error');
+}
+
+/* ── Slider ────────────────────────────────── */
+slider.addEventListener('input', () => {
+    currentThrottle = parseInt(slider.value);
+    updateThrottleDisplay(currentThrottle);
+
+    /* Throttle commands at ~20Hz max to avoid flooding serial */
+    if (!sendThrottleTimer) {
+        sendThrottleTimer = setTimeout(() => {
+            sendCmd('S' + currentThrottle);
+            sendThrottleTimer = null;
+        }, 50);
+    }
+});
+
+/* ── Keyboard ──────────────────────────────── */
+document.addEventListener('keydown', (e) => {
+    switch(e.key) {
+        case 'ArrowUp':
+            e.preventDefault();
+            if (motorState === 1) {
+                currentThrottle = Math.min(2000, currentThrottle + 20);
+                slider.value = currentThrottle;
+                updateThrottleDisplay(currentThrottle);
+                sendCmd('S' + currentThrottle);
+            }
+            break;
+        case 'ArrowDown':
+            e.preventDefault();
+            if (motorState === 1) {
+                currentThrottle = Math.max(1000, currentThrottle - 20);
+                slider.value = currentThrottle;
+                updateThrottleDisplay(currentThrottle);
+                sendCmd('S' + currentThrottle);
+            }
+            break;
+        case 'a': case 'A':
+            if (motorState === 0) sendCmd('A');
+            break;
+        case 'd': case 'D': case ' ':
+            e.preventDefault();
+            if (motorState === 1) sendCmd('D');
+            break;
+        case 'Escape':
+            emergencyStop();
+            break;
+        case 'r': case 'R':
+            if (motorState === 2) sendCmd('R');  // reset from killed
+            break;
+    }
+});
+
+/* ── Log ───────────────────────────────────── */
+function addLog(msg, cls = '') {
+    const time = new Date().toLocaleTimeString('en-US', { hour12: false });
+    const div = document.createElement('div');
+    div.className = 'log-line ' + cls;
+    div.textContent = `[${time}] ${msg}`;
+    logContainer.appendChild(div);
+    logContainer.scrollTop = logContainer.scrollHeight;
+    /* Keep last 100 lines */
+    while (logContainer.children.length > 100) {
+        logContainer.removeChild(logContainer.firstChild);
+    }
+}
+
+/* ── Clock ─────────────────────────────────── */
+setInterval(() => {
+    document.getElementById('clock').textContent =
+        new Date().toLocaleTimeString('en-US', { hour12: false });
+}, 1000);
+
+/* ── Init ──────────────────────────────────── */
+addLog('Ground Station initialized', 'ok');
+connectWS();
+</script>
+</body>
+</html>
