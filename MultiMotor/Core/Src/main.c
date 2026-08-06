@@ -43,9 +43,10 @@ static void set_throttle(uint8_t motor, uint32_t ccr) {
     if (ccr > 2000) ccr = 2000;
     motor_ccr[motor] = ccr;
     const MotorConfig *m = &motors[motor];
-    LL_TIM_OC_SetCompareCH1(m->tim, ccr); /* CH1/CH2 both use SetCompareCH1 internally */
     if (m->channel == LL_TIM_CHANNEL_CH2)
         LL_TIM_OC_SetCompareCH2(m->tim, ccr);
+    else
+        LL_TIM_OC_SetCompareCH1(m->tim, ccr);
 }
 
 int main(void)
@@ -220,19 +221,19 @@ static void process_cmd(void) {
         uart_send_str("DISARMED\r\n");
     }
     else if (c[0] == 'S' && motor_state == ST_ARMED) {
-        /* S<motor>,<value>  or  S<value> (backward compat, motor=0) */
+        /* Format: S<motor>,<value>  e.g. S1,1500
+           Backward compat: S<value> → sets all motors */
         char *p = &c[1];
-        uint32_t mot = parse_uint(p);
-        /* Check if a comma follows the first number */
+        uint32_t v1 = parse_uint(p);
         while (*p >= '0' && *p <= '9') p++;
         if (*p == ',') {
-            /* S<motor>,<value> */
-            p++; /* skip ',' */
+            /* S<motor>,<value> — motor is 1-indexed */
+            p++;
             uint32_t val = parse_uint(p);
-            set_throttle((uint8_t)mot, val);
+            set_throttle((uint8_t)(v1 - 1), val);  /* convert to 0-index */
         } else {
-            /* S<value> — backward compat, motor 0 (all) */
-            set_throttle(0, mot);
+            /* S<value> — set all motors */
+            for (int i = 0; i < 6; i++) set_throttle(i, v1);
         }
         last_cmd_tick = sys_tick;
     }
