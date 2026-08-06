@@ -1,0 +1,14 @@
+{
+  "name": "emax-ground-station",
+  "version": "1.0.0",
+  "description": "Web UI ground station for EMAX ESC motor control via NUCLEO-C092RC",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "serialport": "^12.0.0",
+    "ws": "^8.18.0"
+  }
+}
