@@ -7,12 +7,12 @@
 
 /* ── Motor pin configuration ──────────────────────────────── */
 const MotorConfig motors[6] = {
-    { TIM16, LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_6,  GPIOA, LL_GPIO_AF_5 },  /* M1: PA6  D12 */
-    { TIM17, LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_7,  GPIOA, LL_GPIO_AF_5 },  /* M2: PA7  D11 */
-    { TIM14, LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_4,  GPIOA, LL_GPIO_AF_4 },  /* M3: PA4  A2  */
-    { TIM1,  LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_8,  GPIOA, LL_GPIO_AF_2 },  /* M4: PA8  D7  */
-    { TIM1,  LL_TIM_CHANNEL_CH2, LL_GPIO_PIN_9,  GPIOA, LL_GPIO_AF_2 },  /* M5: PA9  D8  */
-    { TIM2,  LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_0,  GPIOA, LL_GPIO_AF_5 },  /* M6: PA0  A0  */
+    { TIM16, LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_6,  GPIOA, LL_GPIO_AF_5 },  /* M1: PA6  = TIM16_CH1 (verified: original) */
+    { TIM17, LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_7,  GPIOA, LL_GPIO_AF_5 },  /* M2: PA7  = TIM17_CH1 */
+    { TIM14, LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_4,  GPIOA, LL_GPIO_AF_4 },  /* M3: PA4  = TIM14_CH1 */
+    { TIM1,  LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_8,  GPIOA, LL_GPIO_AF_2 },  /* M4: PA8  = TIM1_CH1 (verified: InputCapture) */
+    { TIM1,  LL_TIM_CHANNEL_CH4, LL_GPIO_PIN_9,  GPIOA, LL_GPIO_AF_2 },  /* M5: PA9  = TIM1_CH4 (verified: Central_PWM) */
+    { TIM2,  LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_4,  GPIOC, LL_GPIO_AF_3 },  /* M6: PC4  = TIM2_CH1 (verified: PWMOutput) */
 };
 
 /* ── State ────────────────────────────────────────────────── */
@@ -43,10 +43,13 @@ static void set_throttle(uint8_t motor, uint32_t ccr) {
     if (ccr > 2000) ccr = 2000;
     motor_ccr[motor] = ccr;
     const MotorConfig *m = &motors[motor];
-    if (m->channel == LL_TIM_CHANNEL_CH2)
-        LL_TIM_OC_SetCompareCH2(m->tim, ccr);
-    else
-        LL_TIM_OC_SetCompareCH1(m->tim, ccr);
+    switch (m->channel) {
+        case LL_TIM_CHANNEL_CH1: LL_TIM_OC_SetCompareCH1(m->tim, ccr); break;
+        case LL_TIM_CHANNEL_CH2: LL_TIM_OC_SetCompareCH2(m->tim, ccr); break;
+        case LL_TIM_CHANNEL_CH3: LL_TIM_OC_SetCompareCH3(m->tim, ccr); break;
+        case LL_TIM_CHANNEL_CH4: LL_TIM_OC_SetCompareCH4(m->tim, ccr); break;
+        default: break;
+    }
 }
 
 int main(void)
@@ -67,7 +70,7 @@ int main(void)
     while (1) {
         if (cmd_ready) { cmd_ready = 0; process_cmd(); }
 
-        if (motor_state == ST_ARMED && (sys_tick - last_cmd_tick) > 500) {
+        if (motor_state == ST_ARMED && (sys_tick - last_cmd_tick) > 1000) {
             motor_state = ST_DISARMED;
             for (int i = 0; i < 6; i++) set_throttle(i, 1000);
             uart_send_str("TIMEOUT\r\n");
@@ -152,8 +155,15 @@ static void MX_Timers_Init(void) {
 
         LL_TIM_SetPrescaler(m->tim, 47);
         LL_TIM_SetAutoReload(m->tim, 19999);
-        LL_TIM_OC_SetCompareCH1(m->tim, 1000);
-        if (m->channel == LL_TIM_CHANNEL_CH2) LL_TIM_OC_SetCompareCH2(m->tim, 1000);
+
+        /* Set initial compare value for the correct channel */
+        switch (m->channel) {
+            case LL_TIM_CHANNEL_CH1: LL_TIM_OC_SetCompareCH1(m->tim, 1000); break;
+            case LL_TIM_CHANNEL_CH2: LL_TIM_OC_SetCompareCH2(m->tim, 1000); break;
+            case LL_TIM_CHANNEL_CH3: LL_TIM_OC_SetCompareCH3(m->tim, 1000); break;
+            case LL_TIM_CHANNEL_CH4: LL_TIM_OC_SetCompareCH4(m->tim, 1000); break;
+            default: break;
+        }
 
         LL_TIM_OC_SetMode(m->tim, m->channel, LL_TIM_OCMODE_PWM1);
         LL_TIM_OC_SetPolarity(m->tim, m->channel, LL_TIM_OCPOLARITY_HIGH);
