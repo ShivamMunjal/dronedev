@@ -83,9 +83,8 @@
   <div class="master-bar">
     <label>⚡ ALL MOTORS</label>
     <input type="range" id="masterSlider" min="1000" max="2000" value="1000" step="10" disabled
-      oninput="masterChange(this.value)">
+      oninput="masterSync(this.value)">
     <div class="master-val" id="masterVal">1000</div>
-    <button onclick="masterApply()" disabled id="btnApply">APPLY</button>
   </div>
   <div class="motors-grid" id="motors"></div>
   <div class="controls">
@@ -169,10 +168,10 @@ function setState(st){
   const armed=(st===1);
   for(let i=0;i<6;i++)document.getElementById('ms'+i).disabled=!armed;
   document.getElementById('masterSlider').disabled=!armed;
-  document.getElementById('btnApply').disabled=!armed;
   document.getElementById('btnArm').disabled=armed||(st===2);
   document.getElementById('btnDisarm').disabled=!armed;
-  if(!armed){for(let i=0;i<6;i++){document.getElementById('ms'+i).value=1000;curThr[i]=1000;document.getElementById('mv'+i).textContent='1000';document.getElementById('mp'+i).textContent='0%'}}
+  if(!armed){for(let i=0;i<6;i++){document.getElementById('ms'+i).value=1000;curThr[i]=1000;document.getElementById('mv'+i).textContent='1000';document.getElementById('mp'+i).textContent='0%'}
+    document.getElementById('masterSlider').value=1000;document.getElementById('masterVal').textContent='1000'}
   if(kTimer){clearInterval(kTimer);kTimer=null}
   if(armed){kTimer=setInterval(()=>{if(sState===1)for(let i=0;i<6;i++)sendCmd('S'+(i+1)+','+curThr[i])},400)}
 }
@@ -187,16 +186,16 @@ function sliderChange(i,v){
 function sendCmd(c){if(ws&&ws.readyState===1)ws.send(c)}
 function zeroAll(){for(let i=0;i<6;i++){document.getElementById('ms'+i).value=1000;sliderChange(i,'1000')}}
 
-/* Master slider */
-function masterChange(v){
+/* Master slider - real-time sync */
+function masterSync(v){
   document.getElementById('masterVal').textContent=v;
-}
-function masterApply(){
-  const v=document.getElementById('masterSlider').value;
   for(let i=0;i<6;i++){
     document.getElementById('ms'+i).value=v;
-    sliderChange(i,v);
+    curThr[i]=parseInt(v);
+    document.getElementById('mv'+i).textContent=v;
+    document.getElementById('mp'+i).textContent=Math.round((parseInt(v)-1000)/10)+'%';
   }
+  if(sState===1)for(let i=0;i<6;i++)sendCmd('S'+(i+1)+','+v);
 }
 
 /* Keyboard */
