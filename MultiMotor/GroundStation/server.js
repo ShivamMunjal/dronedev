@@ -51,7 +51,17 @@ function broadcast(data) {
 
 /* ── Connect to serial port ─────────────────────────────────── */
 async function connectSerial() {
-    const portPath = '/dev/cu.usbmodem1102';
+    let portPath = null;
+    try {
+        const ports = await SerialPort.list();
+        const nucleo = ports.find(p =>
+            (p.path.includes('usbmodem')) && (p.vendorId === '0483')
+        );
+        if (nucleo) {
+            // Prefer cu. on macOS (reliable for serial I/O)
+            portPath = nucleo.path.replace('/dev/tty.', '/dev/cu.');
+        }
+    } catch (e) {}
 
     if (!portPath) {
         console.log('⚠  No NUCLEO found. Waiting...');
