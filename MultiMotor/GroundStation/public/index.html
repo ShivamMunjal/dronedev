@@ -89,7 +89,7 @@
   <h2>Pins</h2>
   <div class="telem-box">
     M1: PA6/D12 | M2: PA7/D11 | M3: PA4/A2<br>
-    M4: PA8/D7 | M5: PA9/D8 | M6: PA10/D2<br>
+    M4: PA8/D7 | M5: PA1/A1 | M6: PA10/D2<br>
     50Hz PWM, 1000-2000µs, 115200bd
   </div>
   <h2>Keyboard</h2>
@@ -109,7 +109,7 @@ let ws,sState=0,curThr=[1000,1000,1000,1000,1000,1000],selMotor=0,kTimer=null;
 
 /* Build motor cards */
 const grid=document.getElementById('motors');
-const motorPins=['PA6/D12','PA7/D11','PA4/A2','PA8/D7','PA9/D8','PA10/D2'];
+const motorPins=['PA6/D12','PA7/D11','PA4/A2','PA8/D7','PA1/A1','PA10/D2'];
 for(let i=0;i<6;i++){
   const d=document.createElement('div');
   d.className='motor-card';

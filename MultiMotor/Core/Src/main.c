@@ -11,7 +11,7 @@ const MotorConfig motors[6] = {
     { TIM17, LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_7,  GPIOA, LL_GPIO_AF_5 },  /* M2: PA7  = TIM17_CH1 */
     { TIM14, LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_4,  GPIOA, LL_GPIO_AF_4 },  /* M3: PA4  = TIM14_CH1 */
     { TIM1,  LL_TIM_CHANNEL_CH1, LL_GPIO_PIN_8,  GPIOA, LL_GPIO_AF_2 },  /* M4: PA8  = TIM1_CH1 (verified: InputCapture) */
-    { TIM1,  LL_TIM_CHANNEL_CH4, LL_GPIO_PIN_9,  GPIOA, LL_GPIO_AF_2 },  /* M5: PA9  = TIM1_CH4 (verified: Central_PWM) */
+    { TIM1,  LL_TIM_CHANNEL_CH2, LL_GPIO_PIN_1,  GPIOA, LL_GPIO_AF_5 },  /* M5: PA1  = TIM1_CH2 (verified: Central_PWM) */
     { TIM1,  LL_TIM_CHANNEL_CH3, LL_GPIO_PIN_10, GPIOA, LL_GPIO_AF_2 },  /* M6: PA10 = TIM1_CH3 (verified: Central_PWM) */
 };
 
