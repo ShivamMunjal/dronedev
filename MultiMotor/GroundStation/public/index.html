@@ -21,6 +21,7 @@
   .motors-grid{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(2,1fr);gap:12px;padding:16px;overflow-y:auto}
   .motor-card{background:var(--panel);border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;align-items:center;gap:8px;min-width:160px}
   .motor-card h3{font-size:13px;color:var(--dim);letter-spacing:1px}
+  .motor-card .pin-label{font-size:11px;color:var(--amber);background:rgba(245,158,11,0.15);padding:2px 8px;border-radius:4px;letter-spacing:0.5px}
   .motor-card .value{font-size:36px;font-weight:700;color:var(--cyan);font-variant-numeric:tabular-nums}
   .motor-card .pct{font-size:13px;color:var(--dim)}
   .motor-card input[type=range]{width:100%;height:8px;-webkit-appearance:none;appearance:none;background:linear-gradient(to right,#1e3a5f,var(--cyan));border-radius:4px;cursor:pointer}
@@ -88,7 +89,7 @@
   <h2>Pins</h2>
   <div class="telem-box">
     M1: PA6/D12 | M2: PA7/D11 | M3: PA4/A2<br>
-    M4: PA8/D7 | M5: PA9/D8 | M6: PA0/A0<br>
+    M4: PA8/D7 | M5: PA9/D8 | M6: PA10/D2<br>
     50Hz PWM, 1000-2000µs, 115200bd
   </div>
   <h2>Keyboard</h2>
@@ -108,10 +109,11 @@ let ws,sState=0,curThr=[1000,1000,1000,1000,1000,1000],selMotor=0,kTimer=null;
 
 /* Build motor cards */
 const grid=document.getElementById('motors');
+const motorPins=['PA6/D12','PA7/D11','PA4/A2','PA8/D7','PA9/D8','PA10/D2'];
 for(let i=0;i<6;i++){
   const d=document.createElement('div');
   d.className='motor-card';
-  d.innerHTML=`<h3>Motor ${i+1}</h3><div class="value" id="mv${i}">1000</div>
+  d.innerHTML=`<h3>Motor ${i+1}</h3><div class="pin-label" id="pl${i}">${motorPins[i]}</div><div class="value" id="mv${i}">1000</div>
     <div class="pct" id="mp${i}">0%</div>
     <input type="range" id="ms${i}" min="1000" max="2000" value="1000" step="10" disabled
       oninput="sliderChange(${i},this.value)">`;
