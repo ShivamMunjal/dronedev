@@ -48,6 +48,14 @@
   .btn-zero{color:var(--dim);border-color:var(--dim);font-size:11px;padding:8px 16px}
   .btn-zero:hover{background:#1e293b}
 
+  /* Master slider */
+  .master-bar{background:var(--panel);border:1px solid var(--amber);border-radius:10px;margin:0 16px 8px;padding:10px 20px;display:flex;align-items:center;gap:16px}
+  .master-bar label{font-size:12px;color:var(--amber);letter-spacing:1px;white-space:nowrap;min-width:100px}
+  .master-bar input[type=range]{flex:1;height:10px;-webkit-appearance:none;appearance:none;background:linear-gradient(to right,#1e3a5f,var(--amber));border-radius:5px;cursor:pointer}
+  .master-bar input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:28px;height:18px;border-radius:4px;background:var(--text);border:2px solid var(--amber);cursor:pointer}
+  .master-bar .master-val{font-size:22px;font-weight:700;color:var(--amber);min-width:60px;text-align:right;font-variant-numeric:tabular-nums}
+  .master-bar button{background:var(--amber);color:var(--bg);border:none;border-radius:6px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px}
+
   /* State badge */
   .state{text-align:center;padding:6px}
   .state span{padding:6px 20px;border-radius:6px;font-size:13px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
@@ -72,6 +80,13 @@
 <main>
 <div>
   <div class="state"><span class="disarmed" id="stateBadge">DISARMED</span></div>
+  <div class="master-bar">
+    <label>⚡ ALL MOTORS</label>
+    <input type="range" id="masterSlider" min="1000" max="2000" value="1000" step="10" disabled
+      oninput="masterChange(this.value)">
+    <div class="master-val" id="masterVal">1000</div>
+    <button onclick="masterApply()" disabled id="btnApply">APPLY</button>
+  </div>
   <div class="motors-grid" id="motors"></div>
   <div class="controls">
     <button class="btn-arm" id="btnArm" onclick="sendCmd('A')">⚡ ARM ALL</button>
@@ -89,7 +104,7 @@
   <h2>Pins</h2>
   <div class="telem-box">
     M1: PA6/D12 | M2: PA7/D11 | M3: PA4/A2<br>
-    M4: PA8/D7 | M5: PA1/A1 | M6: PA10/D2<br>
+    M4: PA8/D7 | M5: PA10/D2 | M6: PA1/A1<br>
     50Hz PWM, 1000-2000µs, 115200bd
   </div>
   <h2>Keyboard</h2>
@@ -109,7 +124,7 @@ let ws,sState=0,curThr=[1000,1000,1000,1000,1000,1000],selMotor=0,kTimer=null;
 
 /* Build motor cards */
 const grid=document.getElementById('motors');
-const motorPins=['PA6/D12','PA7/D11','PA4/A2','PA8/D7','PA1/A1','PA10/D2'];
+const motorPins=['PA6/D12','PA7/D11','PA4/A2','PA8/D7','PA10/D2','PA1/A1'];
 for(let i=0;i<6;i++){
   const d=document.createElement('div');
   d.className='motor-card';
@@ -153,6 +168,8 @@ function setState(st){
   const b=document.getElementById('stateBadge');b.textContent=names[st];b.className=classes[st];
   const armed=(st===1);
   for(let i=0;i<6;i++)document.getElementById('ms'+i).disabled=!armed;
+  document.getElementById('masterSlider').disabled=!armed;
+  document.getElementById('btnApply').disabled=!armed;
   document.getElementById('btnArm').disabled=armed||(st===2);
   document.getElementById('btnDisarm').disabled=!armed;
   if(!armed){for(let i=0;i<6;i++){document.getElementById('ms'+i).value=1000;curThr[i]=1000;document.getElementById('mv'+i).textContent='1000';document.getElementById('mp'+i).textContent='0%'}}
@@ -169,6 +186,18 @@ function sliderChange(i,v){
 
 function sendCmd(c){if(ws&&ws.readyState===1)ws.send(c)}
 function zeroAll(){for(let i=0;i<6;i++){document.getElementById('ms'+i).value=1000;sliderChange(i,'1000')}}
+
+/* Master slider */
+function masterChange(v){
+  document.getElementById('masterVal').textContent=v;
+}
+function masterApply(){
+  const v=document.getElementById('masterSlider').value;
+  for(let i=0;i<6;i++){
+    document.getElementById('ms'+i).value=v;
+    sliderChange(i,v);
+  }
+}
 
 /* Keyboard */
 document.addEventListener('keydown',e=>{
