@@ -1,289 +1,97 @@
-# 🚁 EMAX ESC Motor Control — Drone Project
+# DroneProject
 
-Control an EMAX/Hobbywing ESC motor from a **web browser** via a NUCLEO-C092RC board connected over USB.
+Multi-motor ESC control system for NUCLEO-C092RC (STM32C092RCT6).
+
+## Repository Structure
 
 ```
-┌──────────────┐   WebSocket    ┌──────────────┐   USB Serial    ┌─────────────────┐   PWM    ┌───────┐
-│  Browser UI  │ ◄════════════► │  Node.js     │ ◄════════════► │  NUCLEO-C092RC  │ ───────► │  ESC  │
-│  (HTML/JS)   │  localhost:3000│  Server      │  115200 baud   │  STM32C092RCT6  │  PA6     │ Motor │
-└──────────────┘                └──────────────┘                └─────────────────┘          └───────┘
+DroneProject/
+├── MultiMotor/
+│   ├── Core/              # STM32 firmware source
+│   │   ├── Inc/main.h
+│   │   └── Src/main.c
+│   ├── Drivers/           # STM32 HAL/LL drivers
+│   ├── Makefile           # Build system
+│   ├── README.md          # Firmware documentation
+│   └── GroundStation/
+│       ├── server.js      # Node.js WebSocket server
+│       ├── public/        # Web dashboard
+│       ├── package.json
+│       └── README.md      # Dashboard documentation
+├── PWM for EMAX/          # Original single-motor project
+└── README.md              # This file
 ```
 
----
+## Quick Start
 
-## Hardware
+### 1. Build & Flash Firmware
 
-| Component | Detail |
-|---|---|
-| **MCU** | STM32C092RCT6 (Cortex-M0+, 48MHz HSI, 256KB Flash, 30KB RAM) |
-| **Board** | NUCLEO-C092RC |
-| **ESC** | Hobbywing 40A 2-6S (or any standard PWM ESC) |
-| **Debugger** | ST-LINK/V2-1 (on-board) |
-| **USB** | USB-C cable (data, not charge-only) |
+```bash
+cd MultiMotor
+make clean && make -j8
+make flash
+```
+
+See [MultiMotor/README.md](MultiMotor/README.md) for details.
+
+### 2. Run Ground Station
+
+```bash
+cd MultiMotor/GroundStation
+npm install
+node server.js
+```
+
+Open http://localhost:3000
+
+See [GroundStation/README.md](MultiMotor/GroundStation/README.md) for details.
+
+## Hardware Setup
+
+### NUCLEO-C092RC Pin Mapping
+
+| Motor | Pin | Header | Timer |
+|---|---|---|---|
+| M1 | PA6 | D12 | TIM16_CH1 |
+| M2 | PA7 | D11 | TIM17_CH1 |
+| M3 | PA4 | A2 | TIM14_CH1 |
+| M4 | PA8 | D7 | TIM1_CH1 |
+| M5 | PA1 | A1 | TIM1_CH2 |
+| M6 | PA10 | D2 | TIM1_CH3 |
 
 ### Wiring
 
 ```
-NUCLEO-C092RC                    ESC (Hobbywing 40A)
-─────────────                    ───────────────────
-PA6 (D12, CN6 pin 6) ────────► Signal (white/yellow)
-GND  (CN6 pin 4)     ────────► GND    (black)
-                                  Red (BEC 5V) → leave disconnected
-
-ESC Power Wires:
-  Thick RED   ──► LiPo + (2-6S)
-  Thick BLACK ──► LiPo -
+NUCLEO-C092RC          ESC          Motor
+    D12 (PA6) ──────► Signal ──────► M1
+    D11 (PA7) ──────► Signal ──────► M2
+    A2  (PA4) ──────► Signal ──────► M3
+    D7  (PA8) ──────► Signal ──────► M4
+    A1  (PA1) ──────► Signal ──────► M5
+    D2  (PA10)──────► Signal ──────► M6
+    GND ─────────────► GND
+    5V  ─────────────► VCC (if needed)
 ```
-
-> ⚠️ **Never connect ESC power wires to the NUCLEO.** Power the NUCLEO via USB.
-
----
-
-## Quick Start
-
-### 1. Connect the board
-Plug the NUCLEO-C092RC into your Mac via USB-C.
-
-### 2. Start the Ground Station
-```bash
-cd GroundStation
-./start.sh
-```
-
-### 3. Open the browser
-Go to **http://localhost:3000**
-
-### 4. Fly!
-- Click **⚡ ARM** → slider unlocks, green LED on
-- **Drag the throttle slider** → motor spins
-- Click **🔒 DISARM** or press **Space** → motor stops
-- Press **Esc** → emergency stop
-
----
 
 ## UART Protocol
 
-**Serial:** 115200 baud, 8N1, on USART2 (PA2=TX, PA3=RX)
-
-### Commands (Mac → NUCLEO)
+115200 baud, 8N1
 
 | Command | Description |
 |---|---|
-| `A\n` | Arm motor (enables throttle) |
-| `D\n` | Disarm motor (throttle → 0) |
-| `S<value>\n` | Set throttle (1000–2000 µs pulse width) |
-| `R\n` | Reset from killed state |
+| `A\n` | ARM |
+| `D\n` | DISARM |
+| `S<motor>,<value>\n` | Set throttle (1-indexed, 1000-2000µs) |
 
-### Telemetry (NUCLEO → Mac)
+Telemetry: `T<ccr1>,...,<ccr6>,<state>` at 10Hz
 
-| Message | Description |
-|---|---|
-| `T<ccr>,<state>\r\n` | Telemetry @10Hz. state: 0=disarmed, 1=armed, 2=killed |
-| `ARMED\r\n` | Motor armed |
-| `DISARMED\r\n` | Motor disarmed |
-| `KILLED\r\n` | Kill switch activated |
-| `TIMEOUT\r\n` | Watchdog auto-disarm (500ms no command) |
+## Safety
 
-### Example Session
-```
-→ A\n                    # Arm
-← ARMED\r\n             # Confirmation
-← T1000,1\r\n           # Telemetry: 1000µs, armed
-→ S1500\n               # Set 50% throttle
-← T1500,1\r\n           # Telemetry: 1500µs, armed
-→ D\n                    # Disarm
-← DISARMED\r\n          # Confirmation
-← T1000,0\r\n           # Telemetry: 1000µs, disarmed
-```
+- Always test with props removed first
+- Start with low throttle (1100µs) and increase slowly
+- Keep emergency stop accessible
+- Motors auto-disarm on 1s communication timeout
 
----
+## License
 
-## PWM Signal
-
-| Parameter | Value |
-|---|---|
-| Timer | TIM16, Channel 1, Pin PA6 |
-| Frequency | 50 Hz (20ms period) |
-| Pulse range | 1000µs (min) – 2000µs (max) |
-| Clock | 48MHz HSI / PSC=47 → 1MHz tick |
-| ARR | 19999 (20ms) |
-| CCR | 1000–2000 (1–2ms pulse) |
-
----
-
-## Safety Features
-
-| Feature | Behavior |
-|---|---|
-| **Arm required** | Throttle ignored unless ARMED |
-| **Watchdog** | Auto-disarm after 500ms without commands |
-| **GUI keepalive** | Browser sends throttle every 400ms while armed |
-| **Kill switch** | Physical button (PC13) toggles kill/reset |
-| **Serial disconnect** | Watchdog disarms motor automatically |
-| **Killed state** | PWM output disabled (TIM16 MOE cleared) |
-
----
-
-## Firmware Build & Flash
-
-### Prerequisites
-- [STM32CubeCLT](https://www.st.com/en/development-tools/stm32cubeclt.html) installed at `/opt/ST/STM32CubeCLT_1.22.0/`
-- STM32CubeIDE installed (for ST-LINK programmer)
-
-### Build
-```bash
-GDIR="/opt/ST/STM32CubeCLT_1.22.0/GNU-tools-for-STM32/bin"
-PROJ="/path/to/PWM for EMAX"
-HAL="$PROJ/Drivers/STM32C0xx_HAL_Driver"
-
-# Compile firmware (LL drivers)
-$GDIR/arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft -Os \
-  -DSTM32C092xx -DUSE_FULL_LL_DRIVER \
-  -I"$HAL/Inc" \
-  -I"$PROJ/Drivers/CMSIS/Device/ST/STM32C0xx/Include" \
-  -I"$PROJ/Drivers/CMSIS/Include" \
-  -c -o esc_main.o esc_firmware.c
-
-# Compile LL driver sources
-for f in ll_usart ll_gpio ll_exti ll_utils ll_rcc ll_tim; do
-  $GDIR/arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft -Os \
-    -DSTM32C092xx -DUSE_FULL_LL_DRIVER \
-    -I"$HAL/Inc" -I"$PROJ/Drivers/CMSIS/Device/ST/STM32C0xx/Include" \
-    -I"$PROJ/Drivers/CMSIS/Include" \
-    -c -o "st_${f}.o" "$HAL/Src/stm32c0xx_${f}.c"
-done
-
-# Compile startup + system
-$GDIR/arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -c -o startup.o startup_stm32c092rctx.s
-$GDIR/arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -Os -DSTM32C092xx \
-  -I"$PROJ/Drivers/CMSIS/Device/ST/STM32C0xx/Include" -I"$PROJ/Drivers/CMSIS/Include" \
-  -c -o system.o "$PROJ/Core/Src/system_stm32c0xx.c"
-
-# Link
-$GDIR/arm-none-eabi-gcc -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft \
-  -T STM32C092RCTX_FLASH.ld -Wl,--gc-sections \
-  --specs=nano.specs --specs=nosys.specs \
-  -o firmware.elf startup.o esc_main.o system.o \
-  st_ll_usart.o st_ll_gpio.o st_ll_exti.o st_ll_utils.o st_ll_rcc.o st_ll_tim.o \
-  -lgcc
-
-# Generate binary
-$GDIR/arm-none-eabi-objcopy -O binary firmware.elf firmware.bin
-```
-
-### Flash
-```bash
-CLI="/Applications/STM32CubeIDE.app/Contents/Eclipse/plugins/\
-com.st.stm32cube.ide.mcu.externaltools.cubeprogrammer.macosaarch64_\
-1.0.100.202603051304/tools/bin/STM32_Programmer_CLI"
-
-# IMPORTANT: Use mode=POWERDOWN (all in ONE command)
-$CLI -c port=SWD mode=POWERDOWN -halt -e all \
-  -d firmware.bin 0x08000000 -v -rst
-```
-
-### Recovery (if board is bricked)
-```bash
-# This ALWAYS works — power-cycles the MCU via ST-LINK
-$CLI -c port=SWD mode=POWERDOWN -halt -e all \
-  -d firmware.bin 0x08000000 -v -rst
-```
-
-> ⚠️ All operations (erase + flash + reset) must be in **ONE CLI command**. Separate `-c` calls lose the connection.
-
----
-
-## Using STM32CubeIDE (GUI)
-
-### Option A: Import as Makefile Project
-
-1. Open **STM32CubeIDE**
-2. **File → Import → General → Existing Projects into Workspace**
-3. Select the `PWM for EMAX` directory
-4. Right-click project → **Build Project** (uses the included Makefile)
-5. Right-click project → **Run As → STM32 C/C++ Application** to flash
-
-### Option B: Generate from .ioc (recommended for beginners)
-
-1. Open **STM32CubeIDE**
-2. **File → New → STM32 Project**
-3. Click **File...** (top-right) → browse to `PWM for EMAX/PWM for EMAX.ioc`
-4. Click **Finish** → CubeMX opens with the board configuration
-5. In CubeMX: **Project Manager → Toolchain/IDE → select STM32CubeIDE**
-6. Click **Project → Generate Code** (⚙️ icon)
-7. CubeIDE opens the generated project
-8. **Replace** `Core/Src/main.c` with our `Core/Src/main.c` from this repo
-9. **Replace** `Core/Inc/main.h` with our `Core/Inc/main.h`
-10. Add LL driver source files to the build:
-    - Right-click project → **Properties → C/C++ Build → Settings → MCU GCC Compiler → Includes**
-    - Ensure `USE_FULL_LL_DRIVER` is defined under **Preprocessor**
-    - Add these files to `Core/Src/` (or add to Makefile `C_SOURCES`):
-      ```
-      stm32c0xx_ll_usart.c
-      stm32c0xx_ll_gpio.c
-      stm32c0xx_ll_exti.c
-      stm32c0xx_ll_utils.c
-      stm32c0xx_ll_rcc.c
-      stm32c0xx_ll_tim.c
-      ```
-    (These are in `Drivers/STM32C0xx_HAL_Driver/Src/`)
-11. **Project → Build All** (Ctrl+B)
-12. Click **Run** (▶️) to flash and run
-
-### Option C: Command line (fastest)
-
-```bash
-cd "PWM for EMAX"
-make            # Build firmware
-make flash      # Flash via ST-LINK (POWERDOWN mode)
-```
-
-> ⚠️ **Important:** The linker script uses **30KB RAM** (not 32KB). Do not change `_estack` in `STM32C092RCTX_FLASH.ld`.
-
----
-
-## Project Structure
-
-```
-DroneProject/
-├── PWM for EMAX/                  # Firmware
-│   ├── bare_metal/
-│   │   ├── STM32C092RCTX_FLASH.ld # Official ST linker script (30KB RAM!)
-│   │   ├── startup_stm32c092rctx.s # Official ST GCC startup
-│   │   └── esc_firmware.c         # ESC controller (LL drivers)
-│   ├── Core/Src/                   # Original CubeMX sources
-│   ├── Drivers/                    # CMSIS + HAL + LL + BSP
-│   └── PWM for EMAX.ioc           # CubeMX configuration
-│
-├── GroundStation/                  # Web UI + Server
-│   ├── start.sh                   # ← Run this!
-│   ├── server.js                  # Node.js bridge (WebSocket ↔ Serial)
-│   ├── package.json
-│   └── public/
-│       └── index.html             # Full control UI
-│
-└── README.md                      # This file
-```
-
----
-
-## Key Lessons Learned
-
-1. **RAM is 30KB, not 32KB** — Stack pointer must be `0x20007800`. Using `0x20008000` causes crash on any `push`/`pop`.
-2. **HSI divider must be set explicitly** — Call `LL_RCC_SetHSIDiv(LL_RCC_HSI_DIV_1)` or the clock may run at 24MHz.
-3. **Use official ST startup + linker script** — Download from [STM32CubeC0 GitHub](https://github.com/STMicroelectronics/STM32CubeC0).
-4. **Use LL drivers** — They handle register configuration correctly (especially USART baud rate calculation).
-5. **Flash with `mode=POWERDOWN`** — Prevents bricking; all operations in one CLI command.
-6. **Use `/dev/cu.usbmodem*`** — Not `/dev/tty.usbmodem*` on macOS.
-
----
-
-## Keyboard Shortcuts (GUI)
-
-| Key | Action |
-|---|---|
-| `↑` / `↓` | Throttle ±20µs |
-| `A` | Arm |
-| `D` / `Space` | Disarm |
-| `Esc` | Emergency stop |
-| `R` | Reset from killed state |
+MIT
