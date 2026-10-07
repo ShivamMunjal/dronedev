@@ -45,7 +45,10 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 MEMORY
 {
   RAM    (xrw)    : ORIGIN = 0x20000000,   LENGTH = 30K
-  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 256K
+  /* 2 KB short of the full 256K: the last page is reserved for saved settings
+   * (see flashcfg.h). Shrinking the region here means the linker can never
+   * place code there, so a config write cannot corrupt the firmware. */
+  FLASH    (rx)    : ORIGIN = 0x8000000,   LENGTH = 254K
 }
 
 /* Sections */

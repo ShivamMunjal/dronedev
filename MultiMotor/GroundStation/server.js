@@ -11,7 +11,7 @@ const { SerialPort } = require('serialport');
 const { ReadlineParser } = require('@serialport/parser-readline');
 
 const BAUD_RATE = 115200;
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;   /* set PORT=3001 to run alongside the single-ESC dashboard */
 
 /* ── Auto-detect NUCLEO serial port ─────────────────────────── */
 async function findNucleoPort() {

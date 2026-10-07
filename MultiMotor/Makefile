@@ -16,6 +16,8 @@ OPT    = -Os
 INC    = -ICore/Inc -IDrivers/STM32C0xx_HAL_Driver/Inc -IDrivers/CMSIS/Device/ST/STM32C0xx/Include -IDrivers/CMSIS/Include
 
 CSRC   = Core/Src/main.c Core/Src/system_stm32c0xx.c \
+         Core/Src/mixer.c Core/Src/pmu.c Core/Src/i2c.c Core/Src/ina2xx.c \
+         Core/Src/flashcfg.c \
          Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_ll_usart.c \
          Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_ll_gpio.c \
          Drivers/STM32C0xx_HAL_Driver/Src/stm32c0xx_ll_exti.c \
@@ -26,6 +28,7 @@ CSRC   = Core/Src/main.c Core/Src/system_stm32c0xx.c \
 ASRC   = startup_stm32c092xx.s
 
 OBJ    = $(addprefix $(BUILD)/,$(notdir $(CSRC:.c=.o))) $(addprefix $(BUILD)/,$(notdir $(ASRC:.s=.o)))
+DEPS   = $(OBJ:.o=.d)
 vpath %.c $(sort $(dir $(CSRC)))
 vpath %.s $(sort $(dir $(ASRC)))
 
@@ -34,8 +37,11 @@ LDFLAGS  = $(CPU) -T$(LDSCRIPT) -Wl,--gc-sections --specs=nano.specs --specs=nos
 
 all: $(BUILD)/$(TARGET).elf $(BUILD)/$(TARGET).bin $(BUILD)/$(TARGET).hex
 
+# -MMD -MP emits one .d file per object listing the headers it included, so
+# editing a HEADER actually triggers a rebuild. Without this, changing
+# Core/Inc/*.h silently produced stale firmware.
 $(BUILD)/%.o: %.c | $(BUILD)
-	$(CC) $(CPU) $(OPT) $(DEFS) $(INC) -c -o $@ $<
+	$(CC) $(CPU) $(OPT) $(DEFS) $(INC) -MMD -MP -c -o $@ $<
 
 $(BUILD)/%.o: %.s | $(BUILD)
 	$(CC) $(CPU) -c -o $@ $<
@@ -55,6 +61,8 @@ $(BUILD):
 
 clean:
 	rm -rf $(BUILD)
+
+-include $(DEPS)
 
 CLI ?= $(shell find /Applications/STM32CubeIDE.app -name "STM32_Programmer_CLI" 2>/dev/null | head -1)
 flash: $(BUILD)/$(TARGET).bin

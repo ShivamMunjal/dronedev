@@ -45,6 +45,9 @@
   .btn-disarm:hover:not(:disabled){background:#451a03}
   .btn-estop{color:#fff;background:var(--red);border-color:var(--red);font-size:15px;padding:12px 40px;width:100%;max-width:500px}
   .btn-estop:hover{background:#dc2626}
+  .btn-recover{color:#fff;background:var(--green);border-color:var(--green);font-size:13px;padding:10px 24px;margin-top:6px}
+  .btn-recover:hover{background:#16a34a}
+  .btn-recover:disabled{background:transparent;color:var(--dim);border-color:var(--border);cursor:not-allowed}
   .btn-zero{color:var(--dim);border-color:var(--dim);font-size:11px;padding:8px 16px}
   .btn-zero:hover{background:#1e293b}
 
@@ -68,6 +71,52 @@
   .right-panel h2{font-size:11px;color:var(--dim);text-transform:uppercase;letter-spacing:2px}
   .telem-box{background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:8px;font-size:10px;line-height:1.8;max-height:200px;overflow-y:auto;word-break:break-all}
   footer{padding:6px 20px;background:var(--panel);border-top:1px solid var(--border);font-size:10px;color:var(--dim);display:flex;justify-content:space-between}
+  /* Telemetry table */
+  .tel-tbl{width:100%;border-collapse:collapse;font-size:10px}
+  .tel-tbl td{padding:2px 4px;border-bottom:1px solid var(--border)}
+  .tel-tbl td:first-child{color:var(--dim)}
+  .tel-tbl td:last-child{text-align:right;font-variant-numeric:tabular-nums;color:var(--text);font-weight:700}
+  .tel-tbl tr.warn td:last-child{color:var(--amber)}
+  .tel-tbl tr.crit td:last-child{color:var(--red)}
+  .tel-tbl tr.ok td:last-child{color:var(--green)}
+  .tel-tbl tr.hdr td{color:var(--teal);border-bottom:1px solid var(--teal);letter-spacing:1px}
+
+  /* Battery bar */
+  .batt-bar{background:var(--panel);border:1px solid var(--teal);border-radius:10px;margin:0 16px 8px;padding:8px 16px;display:flex;align-items:center;gap:14px;font-size:12px;flex-wrap:wrap}
+  .batt-bar .bl{color:var(--teal);letter-spacing:1px;white-space:nowrap;font-weight:700}
+  .batt-bar .bv{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+  .batt-bar .bs{color:var(--dim)}
+  .batt-bar .bs b{color:var(--text);font-variant-numeric:tabular-nums}
+  .batt-bar.warn{border-color:var(--amber)}.batt-bar.warn .bl{color:var(--amber)}
+  .batt-bar.crit{border-color:var(--red)}.batt-bar.crit .bl{color:var(--red)}
+  .batt-bar select{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px;font-family:inherit;font-size:11px;padding:2px 4px}
+
+  /* Mixer control bar */
+  .mix-bar{background:var(--panel);border:1px solid var(--purple);border-radius:10px;margin:8px 16px 0;padding:10px 16px}
+  .mix-bar .mh{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+  .mix-bar .mh label{font-size:12px;color:var(--purple);letter-spacing:1px;font-weight:700}
+  .mix-bar button.mixbtn{background:var(--purple);color:var(--bg);border:none;border-radius:6px;padding:5px 14px;font-size:11px;font-weight:700;letter-spacing:1px;cursor:pointer}
+  .mix-bar button.mixbtn.on{background:var(--red);color:#fff}
+  .mix-axes{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .mix-ax{display:flex;flex-direction:column;gap:3px}
+  .mix-ax label{font-size:10px;color:var(--dim);letter-spacing:1px}
+  .mix-ax .av{font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+  .mix-ax input[type=range]{width:100%;height:6px;-webkit-appearance:none;appearance:none;background:linear-gradient(to right,#1e3a5f,var(--purple));border-radius:3px;cursor:pointer}
+  .mix-ax input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:16px;height:14px;border-radius:3px;background:var(--text);border:2px solid var(--purple);cursor:pointer}
+
+  /* Mixer geometry table */
+  .geo-row{display:grid;grid-template-columns:26px 1fr 62px 22px;gap:4px;align-items:center;margin-bottom:3px}
+  .geo-row span{font-size:10px;color:var(--dim)}
+  .geo-row input,.geo-row select{background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:3px;font-family:inherit;font-size:10px;padding:2px 3px;width:100%}
+  .geo-row select{padding:2px 0}
+  .geo-btns{display:flex;gap:4px;margin-top:6px;flex-wrap:wrap}
+  .geo-btns button{background:transparent;border:1px solid var(--dim);color:var(--dim);border-radius:4px;font-size:10px;padding:3px 7px;cursor:pointer;font-family:inherit;letter-spacing:.5px}
+  .geo-btns button:hover{color:var(--text);border-color:var(--text)}
+  .geo-btns button.save{border-color:var(--teal);color:var(--teal)}
+  .geo-btns button.save.dirty{border-color:var(--amber);color:var(--amber)}
+  #cfgState{font-size:10px;letter-spacing:.5px;margin-top:4px}
+  .cfg-ok{color:var(--green)} .cfg-dirty{color:var(--amber)} .cfg-err{color:var(--red)}
+  .limit-warn{color:var(--amber);font-size:10px}
 </style>
 </head>
 <body>
@@ -86,25 +135,86 @@
       oninput="masterSync(this.value)">
     <div class="master-val" id="masterVal">1000</div>
   </div>
+  <div class="batt-bar" id="battBar">
+    <label class="bl">🔋 PMU</label>
+    <div class="bv" id="battV">--.-- V</div>
+    <div class="bs"><b id="battA">-</b> A &nbsp; <b id="battW">-</b> W</div>
+    <div class="bs">used <b id="battMah">-</b> mAh &nbsp; <b id="battWh">-</b> Wh</div>
+    <div class="bs">die <b id="battT">-</b> °C</div>
+    <div class="bs">pack <select id="cells" onchange="setCells(this.value)">
+      <option>4</option><option>5</option><option selected>6</option><option>7</option><option>8</option></select>S
+      &nbsp;<b id="battCell">-</b> V/cell</div>
+    <div class="bs" id="battStatus"></div>
+  </div>
   <div class="motors-grid" id="motors"></div>
+  <div class="mix-bar">
+    <div class="mh">
+      <label>🎛 MIXER</label>
+      <button class="mixbtn" id="mixBtn" onclick="toggleMix()">MIX OFF</button>
+      <span class="bs" style="font-size:10px;color:var(--dim)" id="mixInfo">throttle + roll/pitch/yaw → 6 motors</span>
+      <span class="limit-warn" id="mixLimit"></span>
+    </div>
+    <div class="mix-axes">
+      <div class="mix-ax"><label>THROTTLE</label><div class="av" id="axThrV" style="color:var(--amber)">1000</div>
+        <input type="range" id="axThr" min="1000" max="2000" value="1000" step="5" oninput="axChange('thr',this.value)"></div>
+      <div class="mix-ax"><label>ROLL →</label><div class="av" id="axRollV" style="color:var(--cyan)">0</div>
+        <input type="range" id="axRoll" min="-300" max="300" value="0" step="5" oninput="axChange('roll',this.value)"></div>
+      <div class="mix-ax"><label>PITCH ↑</label><div class="av" id="axPitchV" style="color:var(--green)">0</div>
+        <input type="range" id="axPitch" min="-300" max="300" value="0" step="5" oninput="axChange('pitch',this.value)"></div>
+      <div class="mix-ax"><label>YAW ↻</label><div class="av" id="axYawV" style="color:var(--pink)">0</div>
+        <input type="range" id="axYaw" min="-300" max="300" value="0" step="5" oninput="axChange('yaw',this.value)"></div>
+    </div>
+  </div>
   <div class="controls">
     <button class="btn-arm" id="btnArm" onclick="sendCmd('A')">⚡ ARM ALL</button>
     <button class="btn-disarm" id="btnDisarm" onclick="sendCmd('D')" disabled>🔒 DISARM</button>
     <button class="btn-zero" onclick="zeroAll()">⏬ Zero All</button>
   </div>
   <div style="text-align:center;padding-bottom:8px">
-    <button class="btn-estop" onclick="sendCmd('D')">🛑 EMERGENCY STOP</button>
+    <button class="btn-estop" onclick="sendCmd('!')">🛑 EMERGENCY STOP (kill)</button>
+    <div class="bs" style="font-size:10px;color:var(--dim);margin-top:4px">
+      kills instantly: outputs forced idle then disabled, mixer zeroed. Needs RESET KILL before re-arming.
+    </div>
+    <button class="btn-recover" id="btnRecover" onclick="sendCmd('R')" disabled>🔄 RESET KILL (recover)</button>
   </div>
 </div>
 
 <div class="right-panel">
+  <h2>Battery telemetry (PMU)</h2>
+  <table class="tel-tbl" id="battTbl">
+    <tr class="hdr"><td>ITEM</td><td>VALUE</td></tr>
+    <tr><td>PMU</td><td id="ttPmu">not detected</td></tr>
+    <tr><td>Pack voltage</td><td id="ttV">-</td></tr>
+    <tr><td>Current</td><td id="ttA">-</td></tr>
+    <tr><td>Power</td><td id="ttW">-</td></tr>
+    <tr><td>Charge used</td><td id="ttMah">-</td></tr>
+    <tr><td>Energy used</td><td id="ttWh">-</td></tr>
+    <tr><td>Die temp</td><td id="ttT">-</td></tr>
+    <tr id="ttCellRow"><td>Per cell</td><td id="ttCell">-</td></tr>
+    <tr id="ttStatusRow"><td>Status</td><td id="ttStatus">-</td></tr>
+  </table>
+  <h2>Mixer geometry</h2>
+  <div class="telem-box" id="geoBox"></div>
+  <div class="geo-btns">
+    <button onclick="sendCmd('P1')">Hexa-X</button>
+    <button onclick="sendCmd('P2')">Hexa+</button>
+    <button onclick="sendCmd('P3')">Quad-X</button>
+    <button onclick="applyGeo()">Apply</button>
+    <button onclick="sendCmd('Q')">Read (Q)</button>
+    <button class="save" id="saveBtn" onclick="sendCmd('C')">💾 Save to flash</button>
+  </div>
+  <div id="cfgState" class="cfg-ok">geometry: unknown</div>
+  <div class="bs" style="font-size:10px;color:var(--dim);line-height:1.5">
+    0°=nose, 90°=right (CW from above).<br>
+    dir +1 = speeding up yaws right.
+  </div>
   <h2>Telemetry Raw</h2>
   <div class="telem-box" id="raw"></div>
   <h2>Pins</h2>
   <div class="telem-box">
     M1: PA6/D12 | M2: PA7/D11 | M3: PA4/A2<br>
     M4: PA8/D7 | M5: PA10/D2 | M6: PA1/A1<br>
-    50Hz PWM, 1000-2000µs, 115200bd
+    500Hz PWM, 1000-2000µs, 115200bd
   </div>
   <h2>Keyboard</h2>
   <div class="telem-box">
@@ -134,6 +244,136 @@ for(let i=0;i<6;i++){
   grid.appendChild(d);
 }
 
+/* ── Battery (PMU) state ────────────────────────────────────── */
+let batt={mv:0,ma:0,mw:0,uah:0,uwh:0,mc:null,seen:false};
+let cells=6;
+function setCells(v){cells=parseInt(v);renderBatt()}
+
+function handleBattery(p){
+  batt.mv=parseInt(p[0]); batt.ma=parseInt(p[1]); batt.mw=parseInt(p[2]);
+  batt.uah=parseInt(p[3]); batt.uwh=parseInt(p[4]);
+  batt.mc=(p[5]==='na'||p[5]===undefined)?null:parseInt(p[5]);
+  batt.seen=true; renderBatt();
+}
+
+function renderBatt(){
+  const bar=document.getElementById('battBar');
+  if(!batt.seen){
+    document.getElementById('battV').textContent='--.-- V';
+    bar.className='batt-bar'; document.getElementById('battStatus').textContent='no PMU';
+    return;
+  }
+  const v=batt.mv/1000, a=batt.ma/1000, w=batt.mw/1000;
+  const perCell=v/cells;
+  /* top summary bar */
+  document.getElementById('battV').textContent=v.toFixed(2)+' V';
+  document.getElementById('battA').textContent=a.toFixed(2);
+  document.getElementById('battW').textContent=w.toFixed(1);
+  document.getElementById('battMah').textContent=(batt.uah/1000).toFixed(1);
+  document.getElementById('battWh').textContent=(batt.uwh/1000000).toFixed(2);
+  document.getElementById('battT').textContent=(batt.mc===null?'n/a':(batt.mc/1000).toFixed(1));
+  document.getElementById('battCell').textContent=perCell.toFixed(3);
+
+  /* detailed telemetry table */
+  document.getElementById('ttV').textContent=v.toFixed(3)+' V';
+  document.getElementById('ttA').textContent=a.toFixed(3)+' A';
+  document.getElementById('ttW').textContent=w.toFixed(2)+' W';
+  document.getElementById('ttMah').textContent=(batt.uah/1000).toFixed(2)+' mAh';
+  document.getElementById('ttWh').textContent=(batt.uwh/1000000).toFixed(3)+' Wh';
+  document.getElementById('ttT').textContent=(batt.mc===null?'n/a':(batt.mc/1000).toFixed(1)+' °C');
+  document.getElementById('ttCell').textContent=perCell.toFixed(3)+' V/cell ('+cells+'S)';
+
+  /* 6S LiPo guidance: 3.5 V/cell warn, 3.3 V/cell critical */
+  let cls='batt-bar', msg='ok', rowCls='ok';
+  if(perCell<3.30){cls='batt-bar crit';rowCls='crit';msg='LAND NOW — '+perCell.toFixed(2)+' V/cell';}
+  else if(perCell<3.50){cls='batt-bar warn';rowCls='warn';msg='low battery';}
+  else{msg='ok';}
+  bar.className=cls;
+  document.getElementById('battStatus').textContent=msg;
+  document.getElementById('ttStatus').textContent=msg;
+  document.getElementById('ttStatusRow').className=rowCls;
+  document.getElementById('ttCellRow').className=rowCls;
+}
+
+function setPmuName(txt){
+  document.getElementById('ttPmu').textContent=txt;
+}
+
+/* ── Mixer control ──────────────────────────────────────────── */
+let mix={on:false,timer:null,thr:1000,roll:0,pitch:0,yaw:0};
+const axIds={thr:'axThr',roll:'axRoll',pitch:'axPitch',yaw:'axYaw'};
+
+function axChange(name,v){
+  mix[name]=parseInt(v);
+  document.getElementById(axIds[name]+'V').textContent=v;
+}
+
+/* Apply the firmware's authoritative mixer command to the sliders. Used when
+ * the FIRMWARE changes it (emergency stop, arm, disarm) rather than the user,
+ * so the panel cannot keep showing a command the firmware has already dropped. */
+function setAxes(thr,roll,pitch,yaw){
+  mix.thr=thr; mix.roll=roll; mix.pitch=pitch; mix.yaw=yaw;
+  document.getElementById('axThr').value=thr;    document.getElementById('axThrV').textContent=thr;
+  document.getElementById('axRoll').value=roll;  document.getElementById('axRollV').textContent=roll;
+  document.getElementById('axPitch').value=pitch;document.getElementById('axPitchV').textContent=pitch;
+  document.getElementById('axYaw').value=yaw;    document.getElementById('axYawV').textContent=yaw;
+}
+
+function setAxesEnabled(on){
+  for(const k in axIds) document.getElementById(axIds[k]).disabled=!on;
+  document.getElementById('axThr').disabled=!on;
+}
+
+function toggleMix(){
+  mix.on=!mix.on;
+  const b=document.getElementById('mixBtn');
+  b.textContent=mix.on?'MIX ON':'MIX OFF';
+  b.className='mixbtn'+(mix.on?' on':'');
+  if(mix.timer){clearInterval(mix.timer);mix.timer=null}
+  if(mix.on){
+    /* stream the mix at 20 Hz: keeps the firmware watchdog fed */
+    mix.timer=setInterval(()=>{if(mix.on&&sState===1)sendCmd(`X${mix.thr},${mix.roll},${mix.pitch},${mix.yaw}`)},50);
+  }
+}
+
+function setMixLimit(txt,cls){
+  const e=document.getElementById('mixLimit');
+  e.textContent=txt||''; e.className=cls||'limit-warn';
+}
+
+/* ── Mixer geometry table ───────────────────────────────────── */
+const geoAngles=[30,90,150,210,270,330];
+const geoDirs=[1,-1,1,-1,1,-1];
+function buildGeo(){
+  const box=document.getElementById('geoBox');
+  for(let i=0;i<6;i++){
+    const d=document.createElement('div');
+    d.className='geo-row';
+    d.innerHTML=`<span>M${i+1}</span>
+      <input type="number" id="ga${i}" min="0" max="359" value="${geoAngles[i]}" title="angle in degrees">
+      <select id="gd${i}" title="yaw direction"><option value="1">+1</option><option value="-1">-1</option></select>
+      <span>°</span>`;
+    box.appendChild(d);
+    document.getElementById('gd'+i).value=String(geoDirs[i]);
+  }
+}
+function applyGeo(){
+  for(let i=0;i<6;i++){
+    const a=parseInt(document.getElementById('ga'+i).value)||0;
+    const d=parseInt(document.getElementById('gd'+i).value)||1;
+    sendCmd('M'+(i+1)+','+a+','+d);
+  }
+}
+function syncGeo(pairs){
+  /* pairs = [a1,d1,a2,d2,...] */
+  for(let i=0;i<6;i++){
+    const a=parseInt(pairs[i*2]), d=parseInt(pairs[i*2+1]);
+    if(!isNaN(a)) document.getElementById('ga'+i).value=a;
+    if(!isNaN(d)) document.getElementById('gd'+i).value=(d===0)?document.getElementById('gd'+i).value:String(d);
+    geoAngles[i]=a; geoDirs[i]=d;
+  }
+}
+
 /* WebSocket */
 function connectWS(){
   ws=new WebSocket(`ws://${location.host}`);
@@ -141,7 +381,8 @@ function connectWS(){
   ws.onclose=()=>{document.getElementById('wsDot').className='dot off';document.getElementById('serDot').className='dot off';setTimeout(connectWS,2000)};
   ws.onmessage=e=>{
     try{const m=JSON.parse(e.data);
-      if(m.type==='serial')document.getElementById('serDot').className='dot '+(m.status==='connected'?'on':'off');
+      if(m.type==='serial'){document.getElementById('serDot').className='dot '+(m.status==='connected'?'on':'off');
+        if(m.status==='connected'){setTimeout(()=>{sendCmd('Q');sendCmd('B')},300)}}
       if(m.type==='telemetry')handleTelem(m.data);
     }catch(ex){handleTelem(e.data)}
   };
@@ -157,6 +398,39 @@ function handleTelem(line){
     }
     const st=parseInt(p[6]);
     if(!isNaN(st)&&st!==sState)setState(st);
+  }else if(line.startsWith('B,')){
+    handleBattery(line.substring(2).split(','));
+  }else if(line.startsWith('Q,')){
+    syncGeo(line.substring(2).split(','));
+  }else if(line.startsWith('PMU,')){
+    const v=line.substring(4);
+    if(v==='NONE'){ setPmuName('not detected'); document.getElementById('battStatus').textContent='PMU not detected'; }
+    else if(v==='LOST'){ setPmuName('lost (send B)'); document.getElementById('battStatus').textContent='PMU lost'; setMixLimit('PMU lost — mixer unaffected','limit-warn'); }
+    else { const f=v.split(','); setPmuName(f[0]+' @0x'+parseInt(f[1]).toString(16).toUpperCase()); }
+  }else if(line.startsWith('CFG,')){
+    const t=document.getElementById('cfgState'), b=document.getElementById('saveBtn'), s=line.substring(4);
+    if(s==='DIRTY'){ t.className='cfg-dirty'; t.textContent='⚠ unsaved changes — press Save to keep them across reset';
+                     b.className='save dirty'; }
+    else if(s==='SAVED'){ t.className='cfg-ok'; t.textContent='✓ saved to flash (survives reset and power-off)'; b.className='save'; }
+    else if(s==='LOADED'){ t.className='cfg-ok'; t.textContent='✓ geometry restored from flash'; b.className='save'; }
+    else if(s==='DEFAULT'){ t.className='cfg-dirty'; t.textContent='no saved geometry — using default Hexa-X (press Save to store this one)';
+                            b.className='save dirty'; }
+    else if(s.startsWith('SAVE_ERR')){ t.className='cfg-err'; t.textContent='✗ SAVE FAILED ('+s+')'; b.className='save dirty'; }
+  }else if(line.startsWith('MK,')){
+    setMixLimit('motor config ok',('limit-warn'));
+  }else if(line.startsWith('ME,')){
+    setMixLimit('config error: '+line.substring(3),'limit-warn');
+  }else if(line.startsWith('X,')||line.startsWith('Y,')){
+    const p=line.substring(2).split(',');
+    const lim=p[6];
+    if(lim==='OK')setMixLimit('outputs ok','limit-warn');
+    else setMixLimit('mixer limit: '+lim+' (thr '+p[7]+')','limit-warn');
+  }else if(line.startsWith('AE,')){
+    setMixLimit('cannot arm: '+line.substring(3)+' — press 🔄 RESET KILL first','limit-warn');
+  }else if(line.startsWith('MIX,')){
+    const a=line.substring(4).split(',').map(Number);
+    setAxes(a[0],a[1],a[2],a[3]);
+    if(sState===2)setMixLimit('EMERGENCY STOP — mixer zeroed (thr '+a[0]+', roll/pitch/yaw 0)','limit-warn');
   }else if(line==='ARMED'){setState(1)}else if(line==='DISARMED'){setState(0)}else if(line==='KILLED'){setState(2)}else if(line==='TIMEOUT'){setState(0)}
   const raw=document.getElementById('raw');raw.textContent=line+'\n'+raw.textContent;raw.textContent=raw.textContent.slice(0,1000);
 }
@@ -166,14 +440,25 @@ function setState(st){
   const names=['DISARMED','ARMED','KILLED'],classes=['disarmed','armed','killed'];
   const b=document.getElementById('stateBadge');b.textContent=names[st];b.className=classes[st];
   const armed=(st===1);
-  for(let i=0;i<6;i++)document.getElementById('ms'+i).disabled=!armed;
-  document.getElementById('masterSlider').disabled=!armed;
+
+  /* Emergency stop: stop the command stream at the source as well. The
+   * firmware has already zeroed the mixer, so the GUI must not keep pushing
+   * the old values — and must not silently resume them on the next arm. */
+  if(st===2&&mix.on)toggleMix();
+  for(let i=0;i<6;i++)document.getElementById('ms'+i).disabled=!armed||mix.on;
+  document.getElementById('masterSlider').disabled=!armed||mix.on;
+  setAxesEnabled(armed);
   document.getElementById('btnArm').disabled=armed||(st===2);
   document.getElementById('btnDisarm').disabled=!armed;
+  /* Recovery must be reachable from the GUI: while KILLED, ARM is disabled and
+   * the firmware ignores `A`, so without this the operator was stuck. */
+  document.getElementById('btnRecover').disabled=(st!==2);
+  if(st===2)setMixLimit('KILLED — outputs disabled. Press 🔄 RESET KILL to recover.','limit-warn');
   if(!armed){for(let i=0;i<6;i++){document.getElementById('ms'+i).value=1000;curThr[i]=1000;document.getElementById('mv'+i).textContent='1000';document.getElementById('mp'+i).textContent='0%'}
     document.getElementById('masterSlider').value=1000;document.getElementById('masterVal').textContent='1000'}
   if(kTimer){clearInterval(kTimer);kTimer=null}
-  if(armed){kTimer=setInterval(()=>{if(sState===1)for(let i=0;i<6;i++)sendCmd('S'+(i+1)+','+curThr[i])},400)}
+  /* heartbeat: only when NOT mix-driving, otherwise the X stream does it */
+  if(armed&&!mix.on){kTimer=setInterval(()=>{if(sState===1&&!mix.on)for(let i=0;i<6;i++)sendCmd('S'+(i+1)+','+curThr[i])},400)}
 }
 
 function sliderChange(i,v){
@@ -212,6 +497,9 @@ document.addEventListener('keydown',e=>{
 });
 
 setInterval(()=>{document.getElementById('clock').textContent=new Date().toLocaleTimeString('en-US',{hour12:false})},1000);
+buildGeo();
+setAxesEnabled(false);
+renderBatt();
 connectWS();
 </script>
 </body>
