@@ -1,0 +1,538 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hexacopter 3D Dashboard</title>
+<style>
+:root {
+    --navy: #0a1628; --navy2: #0f1f3d; --navy3: #152a4a;
+    --cyan: #00d4ff; --green: #00e676; --yellow: #ffea00;
+    --orange: #ff9100; --red: #ff4081; --white: #ffffff;
+}
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'SF Pro Display',-apple-system,sans-serif; background:var(--navy); color:var(--white); overflow:hidden; }
+
+/* Header */
+.header { background:linear-gradient(135deg,var(--navy2),var(--navy3)); padding:12px 24px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid rgba(255,255,255,0.08); z-index:100; position:relative; }
+.header h1 { font-size:18px; } .header h1 span { color:var(--cyan); }
+.header-right { display:flex; gap:10px; }
+.badge { padding:4px 12px; border-radius:16px; font-size:11px; font-weight:600; background:rgba(0,212,255,0.15); color:var(--cyan); border:1px solid rgba(0,212,255,0.3); }
+.badge.live { background:rgba(0,230,118,0.15); color:var(--green); border-color:rgba(0,230,118,0.3); }
+.badge.live::before { content:''; display:inline-block; width:6px; height:6px; border-radius:50%; background:var(--green); margin-right:4px; animation:pulse 1.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* Layout */
+.container { display:grid; grid-template-columns:1fr 300px; height:calc(100vh - 48px); }
+
+/* 3D Viewport */
+#viewport { position:relative; background:var(--navy); }
+#viewport canvas { width:100%!important; height:100%!important; }
+
+/* Side Panel */
+.panel { background:var(--navy2); border-left:1px solid rgba(255,255,255,0.06); padding:16px; overflow-y:auto; }
+.section { margin-bottom:16px; }
+.section-title { font-size:12px; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.4); margin-bottom:8px; }
+
+/* Telemetry Cards */
+.telem-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+.telem-card { background:var(--navy3); border-radius:8px; padding:10px; border:1px solid rgba(255,255,255,0.06); }
+.telem-card .label { font-size:10px; color:rgba(255,255,255,0.4); text-transform:uppercase; }
+.telem-card .value { font-size:20px; font-weight:700; font-variant-numeric:tabular-nums; }
+.telem-card .unit { font-size:11px; color:rgba(255,255,255,0.3); }
+
+/* Orientation Display */
+.orient-row { display:flex; gap:8px; margin-bottom:8px; }
+.orient-item { flex:1; background:var(--navy3); border-radius:8px; padding:8px; text-align:center; border:1px solid rgba(255,255,255,0.06); }
+.orient-item .label { font-size:10px; color:rgba(255,255,255,0.4); }
+.orient-item .value { font-size:18px; font-weight:700; }
+.orient-item .bar { height:3px; background:var(--navy); border-radius:2px; margin-top:4px; overflow:hidden; }
+.orient-item .bar-fill { height:100%; border-radius:2px; transition:width 0.1s; }
+
+/* Motor Map */
+.motor-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:4px; }
+.motor-slot { background:var(--navy3); border-radius:6px; padding:8px; text-align:center; border:1px solid rgba(255,255,255,0.06); cursor:pointer; transition:all 0.2s; }
+.motor-slot:hover { border-color:var(--cyan); }
+.motor-slot.active { border-color:var(--green); background:rgba(0,230,118,0.1); }
+.motor-slot .num { font-size:16px; font-weight:700; }
+.motor-slot .pin { font-size:9px; color:rgba(255,255,255,0.3); }
+
+/* IMU Config */
+.imu-config { background:var(--navy3); border-radius:8px; padding:12px; border:1px solid rgba(255,255,255,0.06); }
+.imu-config select { width:100%; background:var(--navy); color:var(--white); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:6px; font-size:12px; margin-top:4px; }
+.imu-config .dir-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:8px; }
+.imu-config .dir-btn { background:var(--navy); border:1px solid rgba(255,255,255,0.1); border-radius:4px; padding:6px; font-size:10px; cursor:pointer; text-align:center; color:var(--white); transition:all 0.2s; }
+.imu-config .dir-btn:hover { border-color:var(--cyan); }
+.imu-config .dir-btn.selected { border-color:var(--green); background:rgba(0,230,118,0.15); color:var(--green); }
+
+/* Buttons */
+.btn { background:var(--cyan); color:var(--navy); border:none; border-radius:6px; padding:8px 16px; font-weight:600; cursor:pointer; font-size:12px; transition:opacity 0.2s; }
+.btn:hover { opacity:0.8; }
+.btn-outline { background:transparent; border:1px solid var(--cyan); color:var(--cyan); }
+
+/* Altitude */
+.alt-display { background:var(--navy3); border-radius:8px; padding:16px; text-align:center; border:1px solid rgba(255,255,255,0.06); }
+.alt-display .alt-value { font-size:36px; font-weight:700; color:var(--cyan); }
+.alt-display .alt-unit { font-size:14px; color:rgba(255,255,255,0.4); }
+.alt-display .alt-label { font-size:10px; color:rgba(255,255,255,0.3); margin-top:4px; }
+
+/* Connection Status */
+.status-bar { padding:8px 16px; font-size:11px; color:rgba(255,255,255,0.3); border-top:1px solid rgba(255,255,255,0.06); }
+</style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Hexacopter <span>3D Dashboard</span></h1>
+    <div class="header-right">
+        <div class="badge" id="sensorBadge">SensorTile.box PRO</div>
+        <div class="badge live" id="liveBadge">Connecting...</div>
+    </div>
+</div>
+
+<div class="container">
+    <!-- 3D Viewport -->
+    <div id="viewport"></div>
+
+    <!-- Side Panel -->
+    <div class="panel">
+        <!-- Orientation -->
+        <div class="section">
+            <div class="section-title">Orientation</div>
+            <div class="orient-row">
+                <div class="orient-item">
+                    <div class="label">Roll</div>
+                    <div class="value" id="rollVal" style="color:var(--cyan)">0.0°</div>
+                    <div class="bar"><div class="bar-fill" id="rollBar" style="width:50%;background:var(--cyan)"></div></div>
+                </div>
+                <div class="orient-item">
+                    <div class="label">Pitch</div>
+                    <div class="value" id="pitchVal" style="color:var(--green)">0.0°</div>
+                    <div class="bar"><div class="bar-fill" id="pitchBar" style="width:50%;background:var(--green)"></div></div>
+                </div>
+                <div class="orient-item">
+                    <div class="label">Yaw</div>
+                    <div class="value" id="yawVal" style="color:var(--yellow)">0.0°</div>
+                    <div class="bar"><div class="bar-fill" id="yawBar" style="width:0%;background:var(--yellow)"></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Altitude -->
+        <div class="section">
+            <div class="section-title">Altitude</div>
+            <div class="alt-display">
+                <div class="alt-value" id="altVal">0.0</div>
+                <div class="alt-unit">meters</div>
+                <div class="alt-label">Barometric (relative)</div>
+            </div>
+            <button class="btn btn-outline" style="width:100%;margin-top:8px" onclick="calibrate()">Calibrate Ground Level</button>
+        </div>
+
+        <!-- IMU Placement -->
+        <div class="section">
+            <div class="section-title">IMU Placement</div>
+            <div class="imu-config">
+                <div style="font-size:11px;color:rgba(255,255,255,0.5)">Place SensorTile.box on drone:</div>
+                <div class="dir-grid">
+                    <div class="dir-btn" onclick="setIMUDir('front_left')" id="imu_fl">↖ Front<br>Left</div>
+                    <div class="dir-btn" onclick="setIMUDir('front')" id="imu_f">↑ Front</div>
+                    <div class="dir-btn" onclick="setIMUDir('front_right')" id="imu_fr">↗ Front<br>Right</div>
+                    <div class="dir-btn" onclick="setIMUDir('left')" id="imu_l">← Left</div>
+                    <div class="dir-btn selected" onclick="setIMUDir('center')" id="imu_c">⊕ Center</div>
+                    <div class="dir-btn" onclick="setIMUDir('right')" id="imu_r">→ Right</div>
+                    <div class="dir-btn" onclick="setIMUDir('back_left')" id="imu_bl">↙ Back<br>Left</div>
+                    <div class="dir-btn" onclick="setIMUDir('back')" id="imu_b">↓ Back</div>
+                    <div class="dir-btn" onclick="setIMUDir('back_right')" id="imu_br">↘ Back<br>Right</div>
+                </div>
+                <div style="margin-top:8px">
+                    <div class="label">USB Cable Direction →</div>
+                    <select id="usbDir" onchange="setUSBDIR()">
+                        <option value="front">Forward (away from you)</option>
+                        <option value="back">Backward (toward you)</option>
+                        <option value="left">Left</option>
+                        <option value="right" selected>Right</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Motor Map -->
+        <div class="section">
+            <div class="section-title">Motor Map (click to configure)</div>
+            <div class="motor-grid">
+                <div class="motor-slot" onclick="selectMotor(0)" id="motor0">
+                    <div class="num">M1</div>
+                    <div class="pin">PA6</div>
+                </div>
+                <div class="motor-slot" onclick="selectMotor(1)" id="motor1">
+                    <div class="num">M2</div>
+                    <div class="pin">PA7</div>
+                </div>
+                <div class="motor-slot" onclick="selectMotor(2)" id="motor2">
+                    <div class="num">M3</div>
+                    <div class="pin">PA4</div>
+                </div>
+                <div class="motor-slot" onclick="selectMotor(3)" id="motor3">
+                    <div class="num">M4</div>
+                    <div class="pin">PA8</div>
+                </div>
+                <div class="motor-slot" onclick="selectMotor(4)" id="motor4">
+                    <div class="num">M5</div>
+                    <div class="pin">PA1</div>
+                </div>
+                <div class="motor-slot" onclick="selectMotor(5)" id="motor5">
+                    <div class="num">M6</div>
+                    <div class="pin">PA10</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Raw Sensor Data -->
+        <div class="section">
+            <div class="section-title">Raw Sensor Data</div>
+            <div class="telem-grid">
+                <div class="telem-card">
+                    <div class="label">Accel X</div>
+                    <div class="value" id="axVal" style="color:var(--cyan)">0.000</div>
+                    <div class="unit">g</div>
+                </div>
+                <div class="telem-card">
+                    <div class="label">Accel Y</div>
+                    <div class="value" id="ayVal" style="color:var(--green)">0.000</div>
+                    <div class="unit">g</div>
+                </div>
+                <div class="telem-card">
+                    <div class="label">Accel Z</div>
+                    <div class="value" id="azVal" style="color:var(--yellow)">0.000</div>
+                    <div class="unit">g</div>
+                </div>
+                <div class="telem-card">
+                    <div class="label">Pressure</div>
+                    <div class="value" id="pressVal" style="color:var(--orange)">0.0</div>
+                    <div class="unit">hPa</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="status-bar" id="statusBar">Connecting to WebSocket...</div>
+    </div>
+</div>
+
+<!-- Three.js -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── State ──
+let ws = null;
+let imuDir = 'center';
+let usbDir = 'right';
+let selectedMotor = -1;
+let sensorState = { roll:0, pitch:0, yaw:0, altitude:0, acc:[0,0,0], press:0 };
+
+// ── Three.js Setup ──
+const viewport = document.getElementById('viewport');
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0a1628);
+scene.fog = new THREE.Fog(0x0a1628, 20, 50);
+
+const camera = new THREE.PerspectiveCamera(45, viewport.clientWidth / viewport.clientHeight, 0.1, 100);
+camera.position.set(5, 4, 5);
+camera.lookAt(0, 0, 0);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled = true;
+viewport.appendChild(renderer.domElement);
+
+// Lights
+const ambient = new THREE.AmbientLight(0x404060, 0.6);
+scene.add(ambient);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+dirLight.position.set(5, 10, 5);
+dirLight.castShadow = true;
+scene.add(dirLight);
+const pointLight = new THREE.PointLight(0x00d4ff, 0.5, 20);
+pointLight.position.set(0, 5, 0);
+scene.add(pointLight);
+
+// Grid
+const grid = new THREE.GridHelper(20, 40, 0x1a2744, 0x1a2744);
+scene.add(grid);
+
+// ── Hexacopter Model ──
+const droneGroup = new THREE.Group();
+scene.add(droneGroup);
+
+// Body (central hub)
+const bodyGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.12, 6);
+const bodyMat = new THREE.MeshPhongMaterial({ color:0x1a2744, emissive:0x0a1628, shininess:80 });
+const body = new THREE.Mesh(bodyGeo, bodyMat);
+body.castShadow = true;
+droneGroup.add(body);
+
+// Top plate
+const topGeo = new THREE.CylinderGeometry(0.25, 0.3, 0.05, 6);
+const topMat = new THREE.MeshPhongMaterial({ color:0x0d3b66, emissive:0x051a33, shininess:100 });
+const top = new THREE.Mesh(topGeo, topMat);
+top.position.y = 0.08;
+droneGroup.add(top);
+
+// Arms + Motors (6 at 60° intervals)
+const motorMeshes = [];
+const propMeshes = [];
+const motorLabels = [];
+const armColors = [0x00d4ff, 0x00e676, 0xffea00, 0xff9100, 0xff4081, 0xb388ff];
+
+for (let i = 0; i < 6; i++) {
+    const angle = (i * 60 - 90) * Math.PI / 180; // -90° so M1 is front
+    const armLen = 1.2;
+
+    // Arm
+    const armGeo = new THREE.BoxGeometry(0.06, 0.04, armLen);
+    const armMat = new THREE.MeshPhongMaterial({ color:0x2a3a5c, emissive:0x1a2744 });
+    const arm = new THREE.Mesh(armGeo, armMat);
+    arm.position.x = Math.sin(angle) * armLen / 2;
+    arm.position.z = Math.cos(angle) * armLen / 2;
+    arm.rotation.y = -angle;
+    arm.castShadow = true;
+    droneGroup.add(arm);
+
+    // Motor mount
+    const mountGeo = new THREE.CylinderGeometry(0.08, 0.1, 0.06, 8);
+    const mountMat = new THREE.MeshPhongMaterial({ color:armColors[i], emissive:armColors[i], emissiveIntensity:0.3 });
+    const mount = new THREE.Mesh(mountGeo, mountMat);
+    mount.position.x = Math.sin(angle) * armLen;
+    mount.position.y = 0.03;
+    mount.position.z = Math.cos(angle) * armLen;
+    mount.castShadow = true;
+    droneGroup.add(mount);
+    motorMeshes.push(mount);
+
+    // Propeller disc
+    const propGeo = new THREE.CylinderGeometry(0.35, 0.35, 0.01, 16);
+    const propMat = new THREE.MeshPhongMaterial({
+        color: armColors[i],
+        transparent: true,
+        opacity: 0.15,
+        emissive: armColors[i],
+        emissiveIntensity: 0.2
+    });
+    const prop = new THREE.Mesh(propGeo, propMat);
+    prop.position.x = Math.sin(angle) * armLen;
+    prop.position.y = 0.08;
+    prop.position.z = Math.cos(angle) * armLen;
+    droneGroup.add(prop);
+    propMeshes.push(prop);
+
+    // Motor label (sprite)
+    const canvas = document.createElement('canvas');
+    canvas.width = 128; canvas.height = 64;
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 32px SF Pro Display, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(`M${i+1}`, 64, 40);
+    const texture = new THREE.CanvasTexture(canvas);
+    const spriteMat = new THREE.SpriteMaterial({ map: texture, transparent: true });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.position.x = Math.sin(angle) * armLen;
+    sprite.position.y = 0.3;
+    sprite.position.z = Math.cos(angle) * armLen;
+    sprite.scale.set(0.4, 0.2, 1);
+    droneGroup.add(sprite);
+    motorLabels.push(sprite);
+}
+
+// IMU indicator (arrow showing forward direction)
+const imuGroup = new THREE.Group();
+droneGroup.add(imuGroup);
+
+const imuArrowGeo = new THREE.ConeGeometry(0.06, 0.2, 8);
+const imuArrowMat = new THREE.MeshPhongMaterial({ color:0x00d4ff, emissive:0x00d4ff, emissiveIntensity:0.5 });
+const imuArrow = new THREE.Mesh(imuArrowGeo, imuArrowMat);
+imuArrow.rotation.x = -Math.PI / 2;
+imuArrow.position.z = -0.15;
+imuGroup.add(imuArrow);
+
+const imuBodyGeo = new THREE.BoxGeometry(0.15, 0.03, 0.1);
+const imuBodyMat = new THREE.MeshPhongMaterial({ color:0x00d4ff, emissive:0x00a0cc });
+const imuBody = new THREE.Mesh(imuBodyGeo, imuBodyMat);
+imuGroup.add(imuBody);
+
+// USB cable indicator
+const usbGroup = new THREE.Group();
+droneGroup.add(usbGroup);
+
+const usbCableGeo = new THREE.CylinderGeometry(0.01, 0.01, 0.3, 8);
+const usbCableMat = new THREE.MeshPhongMaterial({ color:0xffffff, emissive:0x888888 });
+const usbCable = new THREE.Mesh(usbCableGeo, usbCableMat);
+usbCable.rotation.z = Math.PI / 2;
+usbCable.position.z = 0.2;
+usbGroup.add(usbCable);
+
+// Front indicator
+const frontArrowGeo = new THREE.ConeGeometry(0.08, 0.25, 8);
+const frontArrowMat = new THREE.MeshPhongMaterial({ color:0x00e676, emissive:0x00e676, emissiveIntensity:0.5 });
+const frontArrow = new THREE.Mesh(frontArrowGeo, frontArrowMat);
+frontArrow.rotation.x = -Math.PI / 2;
+frontArrow.position.z = -1.6;
+frontArrow.position.y = 0;
+droneGroup.add(frontArrow);
+
+// ── Camera Controls (simple orbit) ──
+let isDragging = false;
+let prevMouse = { x: 0, y: 0 };
+let cameraAngle = { theta: Math.PI / 4, phi: Math.PI / 4 };
+let cameraDist = 7;
+
+viewport.addEventListener('mousedown', (e) => { isDragging = true; prevMouse = { x: e.clientX, y: e.clientY }; });
+viewport.addEventListener('mousemove', (e) => {
+    if (!isDragging) return;
+    const dx = e.clientX - prevMouse.x;
+    const dy = e.clientY - prevMouse.y;
+    cameraAngle.theta -= dx * 0.005;
+    cameraAngle.phi = Math.max(0.1, Math.min(Math.PI / 2 - 0.1, cameraAngle.phi - dy * 0.005));
+    prevMouse = { x: e.clientX, y: e.clientY };
+});
+viewport.addEventListener('mouseup', () => isDragging = false);
+viewport.addEventListener('mouseleave', () => isDragging = false);
+viewport.addEventListener('wheel', (e) => {
+    cameraDist = Math.max(3, Math.min(15, cameraDist + e.deltaY * 0.01));
+});
+
+function updateCamera() {
+    camera.position.x = cameraDist * Math.sin(cameraAngle.theta) * Math.cos(cameraAngle.phi);
+    camera.position.y = cameraDist * Math.sin(cameraAngle.phi);
+    camera.position.z = cameraDist * Math.cos(cameraAngle.theta) * Math.cos(cameraAngle.phi);
+    camera.lookAt(0, 0, 0);
+}
+
+// ── WebSocket Connection ──
+function connectWS() {
+    ws = new WebSocket('ws://localhost:8765');
+    ws.onopen = () => {
+        document.getElementById('liveBadge').textContent = 'LIVE ●';
+        document.getElementById('statusBar').textContent = 'Connected to SensorTile.box PRO';
+    };
+    ws.onmessage = (e) => {
+        const data = JSON.parse(e.data);
+        if (data.type === 'sensor') {
+            sensorState = data;
+            updateDisplay(data);
+        }
+    };
+    ws.onclose = () => {
+        document.getElementById('liveBadge').textContent = 'Disconnected';
+        document.getElementById('statusBar').textContent = 'Connection lost. Reconnecting...';
+        setTimeout(connectWS, 2000);
+    };
+    ws.onerror = () => ws.close();
+}
+
+// ── Update Display ──
+function updateDisplay(data) {
+    // Orientation values
+    document.getElementById('rollVal').textContent = data.roll.toFixed(1) + '°';
+    document.getElementById('pitchVal').textContent = data.pitch.toFixed(1) + '°';
+    document.getElementById('yawVal').textContent = data.yaw.toFixed(1) + '°';
+
+    // Orientation bars (0-100% mapping -180 to 180)
+    document.getElementById('rollBar').style.width = ((data.roll + 180) / 360 * 100) + '%';
+    document.getElementById('pitchBar').style.width = ((data.pitch + 180) / 360 * 100) + '%';
+    document.getElementById('yawBar').style.width = ((data.yaw + 180) / 360 * 100) + '%';
+
+    // Altitude
+    document.getElementById('altVal').textContent = data.altitude.toFixed(2);
+
+    // Raw sensor data
+    document.getElementById('axVal').textContent = data.acc[0].toFixed(3);
+    document.getElementById('ayVal').textContent = data.acc[1].toFixed(3);
+    document.getElementById('azVal').textContent = data.acc[2].toFixed(3);
+    document.getElementById('pressVal').textContent = data.press.toFixed(1);
+}
+
+// ── Animation Loop ──
+let frame = 0;
+function animate() {
+    requestAnimationFrame(animate);
+    frame++;
+
+    // Apply orientation to drone model (convert degrees to radians)
+    const rollRad = sensorState.roll * Math.PI / 180;
+    const pitchRad = sensorState.pitch * Math.PI / 180;
+    const yawRad = sensorState.yaw * Math.PI / 180;
+
+    droneGroup.rotation.x = pitchRad; // Pitch
+    droneGroup.rotation.z = rollRad;  // Roll
+    droneGroup.rotation.y = -yawRad;  // Yaw (negative for correct direction)
+
+    // Animate propellers (spin)
+    propMeshes.forEach((prop, i) => {
+        prop.rotation.y += 0.3 + (i * 0.05);
+    });
+
+    // Highlight selected motor
+    motorMeshes.forEach((m, i) => {
+        if (i === selectedMotor) {
+            m.material.emissiveIntensity = 0.8 + Math.sin(frame * 0.1) * 0.3;
+        } else {
+            m.material.emissiveIntensity = 0.3;
+        }
+    });
+
+    updateCamera();
+    renderer.render(scene, camera);
+}
+
+// ── UI Functions ──
+function selectMotor(idx) {
+    selectedMotor = selectedMotor === idx ? -1 : idx;
+    document.querySelectorAll('.motor-slot').forEach((el, i) => {
+        el.classList.toggle('active', i === selectedMotor);
+    });
+}
+
+function setIMUDir(dir) {
+    imuDir = dir;
+    document.querySelectorAll('.dir-btn').forEach(el => el.classList.remove('selected'));
+    document.getElementById('imu_' + dir.replace('front_','f').replace('back_','b').replace('front','f').replace('back','b').replace('left','l').replace('right','r').replace('center','c')).classList.add('selected');
+
+    // Move IMU indicator
+    const offsets = {
+        center: { x:0, z:0 }, front: { x:0, z:-0.4 }, back: { x:0, z:0.4 },
+        left: { x:-0.4, z:0 }, right: { x:0.4, z:0 },
+        front_left: { x:-0.3, z:-0.3 }, front_right: { x:0.3, z:-0.3 },
+        back_left: { x:-0.3, z:0.3 }, back_right: { x:0.3, z:0.3 }
+    };
+    const off = offsets[dir] || offsets.center;
+    imuGroup.position.x = off.x;
+    imuGroup.position.z = off.z;
+}
+
+function setUSBDIR() {
+    usbDir = document.getElementById('usbDir').value;
+    const angles = { front: 0, back: Math.PI, left: Math.PI/2, right: -Math.PI/2 };
+    usbGroup.rotation.y = angles[usbDir] || 0;
+}
+
+function calibrate() {
+    if (ws && ws.readyState === 1) {
+        ws.send(JSON.stringify({ type: 'calibrate' }));
+        document.getElementById('statusBar').textContent = 'Ground level calibrated!';
+    }
+}
+
+// ── Window Resize ──
+window.addEventListener('resize', () => {
+    camera.aspect = viewport.clientWidth / viewport.clientHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(viewport.clientWidth, viewport.clientHeight);
+});
+
+// ── Start ──
+connectWS();
+animate();
+</script>
+</body>
+</html>

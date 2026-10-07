@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hexacopter 3D Dashboard</title>
+<style>
+:root{--navy:#0a1628;--navy2:#0f1f3d;--navy3:#152a4a;--cyan:#00d4ff;--green:#00e676;--yellow:#ffea00;--orange:#ff9100;--red:#ff4081;--white:#fff}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:system-ui,sans-serif;background:var(--navy);color:var(--white);overflow:hidden}
+.header{background:linear-gradient(135deg,var(--navy2),var(--navy3));padding:12px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,0.08)}
+.header h1{font-size:18px}.header h1 span{color:var(--cyan)}
+.badge{padding:4px 10px;border-radius:16px;font-size:11px;font-weight:600;background:rgba(255,255,255,0.08);color:var(--white);border:1px solid rgba(255,255,255,0.08)}
+.badge.live{color:var(--green);border-color:var(--green);background:rgba(0,230,118,0.12)}
+.badge.live::before{content:'';display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--green);margin-right:4px;animation:pls 1.5s infinite}
+@keyframes pls{0%,100%{opacity:1}50%{opacity:0.3}}
+.container{display:grid;grid-template-columns:1fr 300px;height:calc(100vh - 44px)}
+#viewport{position:relative;background:var(--navy)}
+.panel{background:var(--navy2);border-left:1px solid rgba(255,255,255,0.06);padding:14px;overflow-y:auto}
+.section{margin-bottom:14px}
+.section-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:rgba(255,255,255,0.35);margin-bottom:8px}
+.orient-row{display:flex;gap:6px;margin-bottom:6px}
+.orient-item{flex:1;background:var(--navy3);border-radius:6px;padding:8px;text-align:center;border:1px solid rgba(255,255,255,0.06)}
+.orient-item .label{font-size:10px;color:rgba(255,255,255,0.3)}
+.orient-item .value{font-size:17px;font-weight:700}
+.orient-item .bar{height:3px;background:var(--navy);border-radius:2px;margin-top:4px;overflow:hidden}
+.orient-item .bar-fill{height:100%;border-radius:2px;transition:width 0.1s}
+.telem-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.telem-card{background:var(--navy3);border-radius:6px;padding:8px;border:1px solid rgba(255,255,255,0.06)}
+.telem-card .label{font-size:9px;color:rgba(255,255,255,0.3);text-transform:uppercase}
+.telem-card .value{font-size:18px;font-weight:700}
+.telem-card .unit{font-size:10px;color:rgba(255,255,255,0.25)}
+.motor-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px}
+.motor-slot{background:var(--navy3);border-radius:6px;padding:8px;text-align:center;border:1px solid rgba(255,255,255,0.06);cursor:pointer}
+.motor-slot:hover{border-color:var(--cyan)}.motor-slot.active{border-color:var(--green);background:rgba(0,230,118,0.1)}
+.motor-slot .num{font-size:14px;font-weight:700}.motor-slot .pin{font-size:9px;color:rgba(255,255,255,0.25)}
+.imu-config{background:var(--navy3);border-radius:6px;padding:10px;border:1px solid rgba(255,255,255,0.06)}
+.imu-config .dir-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:8px}
+.dir-btn{background:var(--navy);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:6px;font-size:10px;cursor:pointer;text-align:center;color:var(--white)}
+.dir-btn:hover{border-color:var(--cyan)}.dir-btn.selected{border-color:var(--green);background:rgba(0,230,118,0.15);color:var(--green)}
+select{width:100%;background:var(--navy);color:var(--white);border:1px solid rgba(255,255,255,0.1);border-radius:4px;padding:6px;font-size:11px;margin-top:4px}
+.btn{background:var(--cyan);color:var(--navy);border:none;border-radius:6px;padding:8px 14px;font-weight:600;cursor:pointer;font-size:12px}
+.btn-outline{background:transparent;border:1px solid var(--cyan);color:var(--cyan)}
+.alt-display{background:var(--navy3);border-radius:8px;padding:14px;text-align:center;border:1px solid rgba(255,255,255,0.06)}
+.alt-display .alt-value{font-size:32px;font-weight:700;color:var(--cyan)}
+.alt-display .alt-unit{font-size:13px;color:rgba(255,255,255,0.35)}
+.status-bar{padding:6px 10px;font-size:10px;color:rgba(255,255,255,0.25);border-top:1px solid rgba(255,255,255,0.06)}
+/* Toast — the old feedback went to the 10px 25%-opacity status line at the very
+   bottom of the panel, which is effectively invisible.  Every control now
+   reports through this. */
+#toast{position:fixed;top:56px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{background:#0d2038;border:1px solid #00d4ff;border-left:4px solid #00d4ff;color:#e8f4ff;
+  padding:10px 14px;border-radius:6px;font-size:12px;max-width:340px;box-shadow:0 6px 24px rgba(0,0,0,0.5);
+  animation:tin 0.18s ease-out}
+.toast.ok{border-color:#00e676;border-left-color:#00e676}
+.toast.err{border-color:#ff5252;border-left-color:#ff5252}
+.toast.warn{border-color:#ff9100;border-left-color:#ff9100}
+@keyframes tin{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:none}}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Hexacopter <span>3D Dashboard</span></h1>
+<div style="display:flex;gap:8px"><div class="badge" id="sensorBadge">STEVAL-MKBOXPRO</div><div class="badge live" id="liveBadge">Connecting...</div></div>
+</div>
+<div class="container">
+<div id="viewport"></div>
+<div class="panel">
+<div class="section">
+<div class="section-title">Orientation</div>
+<div class="orient-row">
+<div class="orient-item"><div class="label">Roll</div><div class="value" id="rollVal" style="color:var(--cyan)">0.0°</div><div class="bar"><div class="bar-fill" id="rollBar" style="width:50%;background:var(--cyan)"></div></div></div>
+<div class="orient-item"><div class="label">Pitch</div><div class="value" id="pitchVal" style="color:var(--green)">0.0°</div><div class="bar"><div class="bar-fill" id="pitchBar" style="width:50%;background:var(--green)"></div></div></div>
+<div class="orient-item"><div class="label">Yaw</div><div class="value" id="yawVal" style="color:var(--yellow)">0.0°</div><div class="bar"><div class="bar-fill" id="yawBar" style="width:0%;background:var(--yellow)"></div></div></div>
+</div>
+</div>
+<div class="section">
+<div class="section-title">Altitude</div>
+<div class="alt-display"><div class="alt-value" id="altVal">0.00</div><div class="alt-unit">meters (relative)</div></div>
+<button class="btn btn-outline" style="width:100%;margin-top:6px" onclick="calibrate()">Calibrate Ground Level</button>
+<button class="btn" style="width:100%;margin-top:6px" onclick="levelTrim()">Level → 0° / 0°</button>
+<button class="btn btn-outline" style="width:100%;margin-top:6px" onclick="magCalStart()">1. Start Compass Cal</button>
+<button class="btn btn-outline" style="width:100%;margin-top:6px" onclick="magCalFit()">2. Finish Compass Cal</button>
+<div id="fusionBox" style="margin-top:10px;font-size:11px;line-height:1.6;color:var(--dim)">
+  <div>IMU <span id="fImu">–</span></div>
+  <div>MAG <span id="fMag">–</span></div>
+  <div>BIAS <span id="fBias">–</span></div>
+  <div>CAL <span id="fCal">–</span></div>
+</div>
+</div>
+<div class="section">
+<div class="section-title">IMU Placement</div>
+<div class="imu-config">
+<div style="font-size:11px;color:rgba(255,255,255,0.4)">Place SensorTile.box on drone:</div>
+<div class="dir-grid">
+<div class="dir-btn" onclick="setIMUDir('front_left')" id="imu_fl">↖ Front<br>Left</div>
+<div class="dir-btn" onclick="setIMUDir('front')" id="imu_f">↑ Front</div>
+<div class="dir-btn" onclick="setIMUDir('front_right')" id="imu_fr">↗ Front<br>Right</div>
+<div class="dir-btn" onclick="setIMUDir('left')" id="imu_l">← Left</div>
+<div class="dir-btn selected" onclick="setIMUDir('center')" id="imu_c">⊕ Center</div>
+<div class="dir-btn" onclick="setIMUDir('right')" id="imu_r">→ Right</div>
+<div class="dir-btn" onclick="setIMUDir('back_left')" id="imu_bl">↙ Back<br>Left</div>
+<div class="dir-btn" onclick="setIMUDir('back')" id="imu_b">↓ Back</div>
+<div class="dir-btn" onclick="setIMUDir('back_right')" id="imu_br">↘ Back<br>Right</div>
+</div>
+<div style="margin-top:6px"><div style="font-size:10px;color:rgba(255,255,255,0.3)">USB Cable →</div><select id="usbDir" onchange="setUSBDIR()"><option value="front">Forward</option><option value="back">Backward</option><option value="left">Left</option><option value="right" selected>Right</option></select></div>
+</div>
+</div>
+<div class="section">
+<div class="section-title">Motor Map</div>
+<div class="motor-grid">
+<div class="motor-slot" onclick="selectMotor(0)" id="motor0"><div class="num">M1</div><div class="pin">PA6</div></div>
+<div class="motor-slot" onclick="selectMotor(1)" id="motor1"><div class="num">M2</div><div class="pin">PA7</div></div>
+<div class="motor-slot" onclick="selectMotor(2)" id="motor2"><div class="num">M3</div><div class="pin">PA4</div></div>
+<div class="motor-slot" onclick="selectMotor(3)" id="motor3"><div class="num">M4</div><div class="pin">PA8</div></div>
+<div class="motor-slot" onclick="selectMotor(4)" id="motor4"><div class="num">M5</div><div class="pin">PA1</div></div>
+<div class="motor-slot" onclick="selectMotor(5)" id="motor5"><div class="num">M6</div><div class="pin">PA10</div></div>
+</div>
+</div>
+<div class="section">
+<div class="section-title">Raw Sensor Data</div>
+<div class="telem-grid">
+<div class="telem-card"><div class="label">Accel X</div><div class="value" id="axVal" style="color:var(--cyan)">0.000</div><div class="unit">g</div></div>
+<div class="telem-card"><div class="label">Accel Y</div><div class="value" id="ayVal" style="color:var(--green)">0.000</div><div class="unit">g</div></div>
+<div class="telem-card"><div class="label">Accel Z</div><div class="value" id="azVal" style="color:var(--yellow)">0.000</div><div class="unit">g</div></div>
+<div class="telem-card"><div class="label">Pressure</div><div class="value" id="pressVal" style="color:var(--orange)">0.0</div><div class="unit">hPa</div></div>
+</div>
+</div>
+<div class="status-bar" id="statusBar">Connecting...</div>
+<div id="toast"></div>
+</div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+if(typeof THREE==='undefined'){
+document.getElementById('viewport').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100%;color:rgba(255,255,255,0.3);flex-direction:column"><div style="font-size:48px">🚁</div><div style="margin-top:12px">Loading 3D...</div><div style="font-size:11px;margin-top:4px">Three.js not loaded</div></div>';
+return;
+}
+
+var viewport=document.getElementById('viewport');
+var sensorState={roll:0,pitch:0,yaw:0,altitude:0,acc:[0,0,0],press:1013.25};
+var selectedMotor=-1;
+
+var scene=new THREE.Scene();
+scene.background=new THREE.Color(0x0a1628);
+scene.fog=new THREE.Fog(0x0a1628,20,50);
+
+var camera=new THREE.PerspectiveCamera(45,viewport.clientWidth/viewport.clientHeight,0.1,100);
+camera.position.set(5,4,5);
+camera.lookAt(0,0,0);
+
+var renderer=new THREE.WebGLRenderer({antialias:true});
+renderer.setSize(viewport.clientWidth,viewport.clientHeight);
+renderer.setPixelRatio(window.devicePixelRatio);
+renderer.shadowMap.enabled=true;
+viewport.appendChild(renderer.domElement);
+
+var ambient=new THREE.AmbientLight(0x404060,0.6);
+scene.add(ambient);
+var dirLight=new THREE.DirectionalLight(0xffffff,0.8);
+dirLight.position.set(5,10,5);
+dirLight.castShadow=true;
+scene.add(dirLight);
+var pointLight=new THREE.PointLight(0x00d4ff,0.5,20);
+pointLight.position.set(0,5,0);
+scene.add(pointLight);
+
+var grid=new THREE.GridHelper(20,40,0x1a2744,0x1a2744);
+scene.add(grid);
+
+// Hexacopter
+var droneGroup=new THREE.Group();
+// Attitude must compose as yaw->pitch->roll (Three.js 'YXZ').
+// The default 'XYZ' applies yaw LAST, which skews roll/pitch whenever the
+// model is yawed away from 0 (looks like the drone tilts sideways).
+droneGroup.rotation.order='YXZ';
+scene.add(droneGroup);
+
+var bodyGeo=new THREE.CylinderGeometry(0.3,0.35,0.12,6);
+var bodyMat=new THREE.MeshPhongMaterial({color:0x1a2744,emissive:0x0a1628,shininess:80});
+var body=new THREE.Mesh(bodyGeo,bodyMat);
+body.castShadow=true;
+droneGroup.add(body);
+
+var topGeo=new THREE.CylinderGeometry(0.25,0.3,0.05,6);
+var topMat=new THREE.MeshPhongMaterial({color:0x0d3b66,emissive:0x051a33,shininess:100});
+var top=new THREE.Mesh(topGeo,topMat);
+top.position.y=0.08;
+droneGroup.add(top);
+
+var motorMeshes=[],propMeshes=[];
+var colors=[0x00d4ff,0x00e676,0xffea00,0xff9100,0xff4081,0xb388ff];
+
+for(var i=0;i<6;i++){
+var angle=(i*60-90)*Math.PI/180;
+var armLen=1.2;
+
+var armGeo=new THREE.BoxGeometry(0.06,0.04,armLen);
+var armMat=new THREE.MeshPhongMaterial({color:0x2a3a5c,emissive:0x1a2744});
+var arm=new THREE.Mesh(armGeo,armMat);
+arm.position.x=Math.sin(angle)*armLen/2;
+arm.position.z=Math.cos(angle)*armLen/2;
+arm.rotation.y=-angle;
+arm.castShadow=true;
+droneGroup.add(arm);
+
+var mountGeo=new THREE.CylinderGeometry(0.08,0.1,0.06,8);
+var mountMat=new THREE.MeshPhongMaterial({color:colors[i],emissive:colors[i],emissiveIntensity:0.3});
+var mount=new THREE.Mesh(mountGeo,mountMat);
+mount.position.x=Math.sin(angle)*armLen;
+mount.position.y=0.03;
+mount.position.z=Math.cos(angle)*armLen;
+mount.castShadow=true;
+droneGroup.add(mount);
+motorMeshes.push(mount);
+
+var propGeo=new THREE.CylinderGeometry(0.35,0.35,0.01,16);
+var propMat=new THREE.MeshPhongMaterial({color:colors[i],transparent:true,opacity:0.15,emissive:colors[i],emissiveIntensity:0.2});
+var prop=new THREE.Mesh(propGeo,propMat);
+prop.position.x=Math.sin(angle)*armLen;
+prop.position.y=0.08;
+prop.position.z=Math.cos(angle)*armLen;
+droneGroup.add(prop);
+propMeshes.push(prop);
+
+var canvas=document.createElement('canvas');
+canvas.width=64;canvas.height=32;
+var ctx=canvas.getContext('2d');
+ctx.fillStyle='#ffffff';
+ctx.font='bold 20px sans-serif';
+ctx.textAlign='center';
+ctx.fillText('M'+(i+1),32,22);
+var texture=new THREE.CanvasTexture(canvas);
+var spriteMat=new THREE.SpriteMaterial({map:texture,transparent:true});
+var sprite=new THREE.Sprite(spriteMat);
+sprite.position.x=Math.sin(angle)*armLen;
+sprite.position.y=0.3;
+sprite.position.z=Math.cos(angle)*armLen;
+sprite.scale.set(0.35,0.18,1);
+droneGroup.add(sprite);
+}
+
+// Front arrow
+var frontGeo=new THREE.ConeGeometry(0.08,0.25,8);
+var frontMat=new THREE.MeshPhongMaterial({color:0x00e676,emissive:0x00e676,emissiveIntensity:0.5});
+var front=new THREE.Mesh(frontGeo,frontMat);
+front.rotation.x=-Math.PI/2;
+front.position.z=-1.6;
+droneGroup.add(front);
+
+// Camera controls
+var dragging=false,prev={x:0,y:0},camTheta=Math.PI/4,camPhi=Math.PI/4,camDist=7;
+viewport.addEventListener('mousedown',function(e){dragging=true;prev={x:e.clientX,y:e.clientY};});
+viewport.addEventListener('mousemove',function(e){
+if(!dragging)return;
+camTheta-= (e.clientX-prev.x)*0.005;
+camPhi=Math.max(0.1,Math.min(Math.PI/2-0.1,camPhi-(e.clientY-prev.y)*0.005));
+prev={x:e.clientX,y:e.clientY};
+});
+viewport.addEventListener('mouseup',function(){dragging=false;});
+viewport.addEventListener('mouseleave',function(){dragging=false;});
+viewport.addEventListener('wheel',function(e){camDist=Math.max(3,Math.min(15,camDist+e.deltaY*0.01));});
+
+function updateCam(){
+camera.position.x=camDist*Math.sin(camTheta)*Math.cos(camPhi);
+camera.position.y=camDist*Math.sin(camPhi);
+camera.position.z=camDist*Math.cos(camTheta)*Math.cos(camPhi);
+camera.lookAt(0,0,0);
+}
+
+// Polling for sensor data (HTTP, not WebSocket — simpler)
+function pollSensor(){
+fetch('/api/sensor').then(function(r){return r.json()}).then(function(data){
+if(data&&typeof data.roll!=='undefined'){
+sensorState=data;
+var rEl=document.getElementById('rollVal');
+var pEl=document.getElementById('pitchVal');
+var yEl=document.getElementById('yawVal');
+if(rEl) rEl.textContent=data.roll.toFixed(1)+'°';
+if(pEl) pEl.textContent=data.pitch.toFixed(1)+'°';
+if(yEl) yEl.textContent=data.yaw.toFixed(1)+'°';
+var rb=document.getElementById('rollBar');
+var pb=document.getElementById('pitchBar');
+var yb=document.getElementById('yawBar');
+if(rb) rb.style.width=((data.roll+180)/360*100)+'%';
+if(pb) pb.style.width=((data.pitch+180)/360*100)+'%';
+if(yb) yb.style.width=((data.yaw+180)/360*100)+'%';
+var av=document.getElementById('altVal');
+if(av) av.textContent=data.altitude.toFixed(2);
+var ax=document.getElementById('axVal');
+var ay=document.getElementById('ayVal');
+var az=document.getElementById('azVal');
+var pr=document.getElementById('pressVal');
+if(ax) ax.textContent=data.acc[0].toFixed(3);
+if(ay) ay.textContent=data.acc[1].toFixed(3);
+if(az) az.textContent=data.acc[2].toFixed(3);
+if(pr) pr.textContent=data.press.toFixed(1);
+var lb=document.getElementById('liveBadge');
+var sb=document.getElementById('statusBar');
+if(lb) lb.textContent='LIVE ●';
+if(sb) sb.textContent='Connected — 30Hz';
+}
+}).catch(function(){});
+}
+
+setInterval(pollSensor,33);
+
+var frame=0;
+function animate(){
+requestAnimationFrame(animate);
+frame++;
+
+var roll=sensorState.roll*Math.PI/180;
+var pitch=sensorState.pitch*Math.PI/180;
+var yaw=sensorState.yaw*Math.PI/180;
+
+droneGroup.rotation.x=pitch;      // nose (-Z) rises for pitch>0          ✓ verified
+droneGroup.rotation.z=roll;       // +rotation.z raises the model's RIGHT side,
+                                  // which reads as "tilted LEFT".
+                                  // The fusion reports roll>0 when the box is
+                                  // tilted LEFT, so the signs already agree —
+                                  // this must be +roll, not -roll.
+droneGroup.rotation.y=-yaw;       // yaw>0 = nose right                    ✓ verified
+
+propMeshes.forEach(function(prop,i){prop.rotation.y+=0.3+i*0.05;});
+
+motorMeshes.forEach(function(m,i){
+if(i===selectedMotor) m.material.emissiveIntensity=0.8+Math.sin(frame*0.1)*0.3;
+else m.material.emissiveIntensity=0.3;
+});
+
+updateCam();
+renderer.render(scene,camera);
+}
+
+window.selectMotor=function(idx){
+selectedMotor=selectedMotor===idx?-1:idx;
+document.querySelectorAll('.motor-slot').forEach(function(el,i){
+el.classList.toggle('active',i===selectedMotor);
+});
+};
+
+window.setIMUDir=function(dir){
+document.querySelectorAll('.dir-btn').forEach(function(el){el.classList.remove('selected');});
+var ids={center:'imu_c',front:'imu_f',back:'imu_b',left:'imu_l',right:'imu_r',
+front_left:'imu_fl',front_right:'imu_fr',back_left:'imu_bl',back_right:'imu_br'};
+var el=document.getElementById(ids[dir]);
+if(el) el.classList.add('selected');
+fetch('/api/mount?imu='+encodeURIComponent(dir)).then(function(r){return r.json()}).then(function(d){
+  toast('IMU mounted '+dir.replace('_',' ')+'\n(recorded — a flat-mounted IMU\'s position does not change attitude;\nonly the USB cable direction does)','ok');
+}).catch(function(){});
+};
+
+window.setUSBDIR=function(){
+var v=document.getElementById('usbDir').value;
+fetch('/api/mount?cable='+encodeURIComponent(v)).then(function(r){return r.json()}).then(function(d){
+  if(d.ok){
+    toast('USB cable → '+v.toUpperCase()+'\nIMU remap applied: order '+d.order.join(',')+'  sign '+d.sign.join(',')+'\nHeading re-acquiring…','ok');
+  } else {
+    toast('Mount rejected: '+(d.error||'?'),'err');
+  }
+}).catch(function(e){toast('Mount failed: '+e,'err');});
+};
+/* ── toast feedback ───────────────────────────────────────────────────── */
+window.toast=function(msg,kind,ms){
+var box=document.getElementById('toast'); if(!box) return;
+var d=document.createElement('div');
+d.className='toast'+(kind?(' '+kind):'');
+d.style.whiteSpace='pre-line';
+d.textContent=msg;
+box.appendChild(d);
+setTimeout(function(){d.style.transition='opacity .3s';d.style.opacity='0';
+  setTimeout(function(){d.remove()},320);}, ms||4000);
+var sb=document.getElementById('statusBar'); if(sb) sb.textContent=msg.split('\n')[0];
+};
+
+window.calibrate=function(){
+fetch('/api/calibrate').then(function(){toast('Ground level calibrated','ok');});
+};
+
+/* Lay the box flat and press this: captures the current attitude as the new
+   zero reference, so the model reads level when the box is level. */
+window.levelTrim=function(){
+fetch('/api/trim').then(function(r){return r.json()}).then(function(d){
+if(d){toast('Level trim applied\nroll offset '+d.trim_roll.toFixed(1)+'°, pitch offset '+d.trim_pitch.toFixed(1)+'°','ok');}
+pollSensor();
+}).catch(function(e){toast('Trim failed: '+e,'err');});
+};
+
+/* ── compass calibration ────────────────────────────────────────────────
+   Start, then slowly rotate the box through ALL orientations (every face up,
+   nose down, on each side) for ~20 s, then Finish.  This fits the hard-iron
+   offset and soft-iron scale; without it a nearby magnet or the box's own
+   metal biases the heading. */
+window.magCalStart=function(){
+fetch('/api/magcal?cmd=start').then(function(r){return r.json()}).then(function(d){
+  toast('COMPASS CAL STARTED\n\nSlowly rotate the box through ALL orientations —\nevery face up, nose down, both sides.\nKeep going ~20 s, then press "2. Finish Compass Cal".\n\nSamples collected: 0','warn',9000);
+  magCalWatch(true);
+}).catch(function(e){toast('Compass cal failed: '+e,'err');});
+};
+
+/* Poll the sample count so the button visibly does something. */
+var _magWatch=null;
+function magCalWatch(on){
+  if(_magWatch){clearInterval(_magWatch);_magWatch=null;}
+  if(!on) return;
+  var last=0;
+  _magWatch=setInterval(function(){
+    fetch('/api/magcal').then(function(r){return r.json()}).then(function(d){
+      if(!d.collecting){clearInterval(_magWatch);_magWatch=null;return;}
+      if(d.samples!==last){
+        last=d.samples;
+        var el=document.getElementById('fCal');
+        if(el) el.textContent='collecting '+d.samples+' samples';
+      }
+    }).catch(function(){});
+  },400);
+}
+
+window.magCalFit=function(){
+fetch('/api/magcal?cmd=fit').then(function(r){return r.json()}).then(function(d){
+  magCalWatch(false);
+  if(d.ok){
+    toast('COMPASS CALIBRATED\n'+d.samples+' samples\n'+d.msg,'ok',7000);
+  } else {
+    toast('COMPASS CAL FAILED\n'+d.samples+' samples\n'+d.msg,'err',8000);
+  }
+}).catch(function(e){toast('Compass cal failed: '+e,'err');});
+};
+
+function pollFusion(){
+fetch('/api/diag').then(function(r){return r.json()}).then(function(d){
+var f=d&&d.fusion; if(!f) return;
+var imu=document.getElementById('fImu');
+var mag=document.getElementById('fMag');
+var bias=document.getElementById('fBias');
+var cal=document.getElementById('fCal');
+if(imu) imu.textContent = f.attitude_valid ? 'OK (leveled)' : 'coasting on gyro';
+if(mag) mag.textContent = f.mag_used ? 'USED ●' : (f.mag_healthy ? 'idle' : 'GATED — disturbance');
+if(mag) mag.style.color = f.mag_used ? '#00e676' : (f.mag_healthy ? '#8b98a5' : '#ff9100');
+if(bias) bias.textContent = f.gyro_bias_dps.map(function(v){return v.toFixed(2)}).join(', ')+' dps';
+if(cal) cal.textContent = f.calibrating ? ('seeding '+f.bias_cal_samples)
+                        : (f.mag_locked ? 'bias+heading locked' : 'acquiring heading');
+}).catch(function(){});
+}
+setInterval(pollFusion,250);
+
+window.addEventListener('resize',function(){
+camera.aspect=viewport.clientWidth/viewport.clientHeight;
+camera.updateProjectionMatrix();
+renderer.setSize(viewport.clientWidth,viewport.clientHeight);
+});
+
+animate();
+pollSensor();
+})();
+</script>
+</body>
+</html>

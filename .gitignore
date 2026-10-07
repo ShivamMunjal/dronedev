@@ -28,3 +28,8 @@ EWARM/settings/
 *.log
 __pycache__/
 *.pyc
+
+# Sensor stack: vendored SDKs are huge (1.5 GB) and reproducible, not source.
+# The scripts, configs and captures the user wrote ARE tracked.
+sensor/venv/
+sensor/external/
