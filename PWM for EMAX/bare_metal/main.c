@@ -69,10 +69,10 @@ int main(void) {
     R(0x50000800)&=0xF3FFFFFF;
     R(0x5000080C)=(R(0x5000080C)&0xF3FFFFFF)|0x4000000;
 
-    /* TIM16: 50Hz PWM */
+    /* TIM16: 500Hz PWM */
     R(0x40021040)|=0x2000;
-    R(0x40014428)=47;       /* PSC */
-    R(0x4001442C)=19999;    /* ARR */
+    R(0x40014428)=47;       /* PSC: 48MHz/48=1MHz tick */
+    R(0x4001442C)=1999;     /* ARR: 1MHz/2000=500Hz (2ms period) */
     R(0x40014434)=1000;     /* CCR1 */
     R(0x40014418)=0x60;     /* CCMR1: PWM mode 1 */
     R(0x40014420)=1;        /* CCER: CC1E */

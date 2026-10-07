@@ -192,7 +192,7 @@ static void gpio_init(void) {
 static void tim16_init(void) {
     RCC->APBENR2 |= RCC_APBENR2_TIM16EN;
     TIM16->PSC = 47;        /* 48MHz / 48 = 1MHz tick */
-    TIM16->ARR = 19999;     /* 1MHz / 20000 = 50Hz */
+    TIM16->ARR = 1999;      /* 1MHz / 2000 = 500Hz */
     TIM16->CCR1 = 1000;     /* 1ms pulse (minimum throttle) */
     TIM16->CCMR1 = TIM_CCMR1_OC1M_2 | TIM_CCMR1_OC1M_1; /* PWM mode 1 */
     TIM16->CCER = TIM_CCER_CC1E;   /* CH1 output enable */

@@ -138,7 +138,7 @@ static void MX_GPIO_Init(void)
     NVIC_EnableIRQ(EXTI4_15_IRQn);
 }
 
-/* ── TIM16: 50Hz PWM on PA6 ── */
+/* ── TIM16: 500Hz PWM on PA6 ── */
 static void MX_TIM16_Init(void)
 {
     LL_APB2_GRP1_EnableClock(LL_APB2_GRP1_PERIPH_TIM16);
@@ -153,8 +153,8 @@ static void MX_TIM16_Init(void)
     gpio.Alternate = LL_GPIO_AF_5;
     LL_GPIO_Init(GPIOA, &gpio);
 
-    LL_TIM_SetPrescaler(TIM16, 47);       /* 48MHz/48 = 1MHz */
-    LL_TIM_SetAutoReload(TIM16, 19999);   /* 1MHz/20000 = 50Hz */
+    LL_TIM_SetPrescaler(TIM16, 47);       /* 48MHz/48 = 1MHz tick */
+    LL_TIM_SetAutoReload(TIM16, 1999);    /* 1MHz/2000 = 500Hz (period 2ms, 1-2ms = 50-100% duty) */
     LL_TIM_OC_SetCompareCH1(TIM16, 1000); /* 1ms pulse */
     LL_TIM_OC_SetMode(TIM16, LL_TIM_CHANNEL_CH1, LL_TIM_OCMODE_PWM1);
     LL_TIM_OC_SetPolarity(TIM16, LL_TIM_CHANNEL_CH1, LL_TIM_OCPOLARITY_HIGH);

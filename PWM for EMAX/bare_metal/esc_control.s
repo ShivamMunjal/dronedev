@@ -283,9 +283,9 @@ tim16_init:
     orrs r1, r2
     str r1, [r0]
     ldr r0, =TIM16_BASE
-    movs r1, #47         /* PSC */
+    movs r1, #47         /* PSC: 48MHz/48=1MHz tick */
     str r1, [r0, #0x28]
-    ldr r1, =19999       /* ARR */
+    ldr r1, =1999        /* ARR: 1MHz/2000=500Hz (2ms period) */
     str r1, [r0, #0x2C]
     ldr r1, =1000        /* CCR1 */
     str r1, [r0, #0x34]
