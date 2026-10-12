@@ -1,0 +1,116 @@
+# IMU — raw ISM330IS data on the NUCLEO-C092RC
+
+Reads an **ISM330IS** 6-axis IMU (on an **STEVAL-MKI230KA** DIL24 adapter) over
+I²C1 and streams **raw inertial data** as CSV on the ST-Link VCP. No MEMS Studio,
+no ST tooling, no closed protocol — just the MCU reading registers.
+
+## Why take the adapter off the MKI109V3
+
+The adapter arrived plugged into a **STEVAL-MKI109V3** motherboard. That board
+cannot be scripted from the Mac:
+
+| Probe of the MKI109V3 (firmware `ProfiF4_MKI109V3`) | Result |
+|---|---|
+| Its own command words (`START`, `GET_PRESENCE`, … found as strings in the .bin) | no reply |
+| 115200 / 921600 / 1843200 baud, with and without DTR | no reply |
+| ST `stdatalog` ASPEP handshake | `ASPEPHeaderError` |
+| ST-Link / datalog firmware to replace it with | none shipped for this board |
+
+It only answers ST's closed binary protocol, i.e. MEMS Studio. So the shortest
+path to raw data is to **take the DIL24 adapter out of that socket and wire it
+here** — which is where the sensor has to end up anyway for closed-loop control.
+
+## Wiring
+
+```
+NUCLEO-C092RC                     STEVAL-MKI230KA (ISM330IS)
+  CN10 pin 3  PB8  I2C1_SCL  -->  SCL / SPC
+  CN10 pin 5  PB9  I2C1_SDA  <->  SDA / SDI
+  3V3                        -->  VDD  and  VDDIO     (1.71-3.6 V)
+  GND                        -->  GND
+                                  CS   -> leave HIGH (low selects SPI)
+                                  SA0/SDO -> GND = 0x6A, 3V3 = 0x6B
+```
+
+The PM02D power module can share this bus — INA228 `0x45` / INA226 `0x41` do not
+collide with the ISM330IS at `0x6A`/`0x6B`. **Both addresses are probed**, so you
+do not have to know how SA0 is tied.
+
+## Build and flash
+
+```bash
+cd IMU
+./build.sh          # CMake + arm-none-eabi-gcc  -> build/imu_ism330is_c092rc.{elf,bin,hex}
+./flash.sh          # STM32_Programmer_CLI, SWD
+```
+
+9.1 KB flash / 2.6 KB RAM.
+
+## Capture on the Mac
+
+```bash
+# pyserial is needed; the sensor project's venv already has it
+./venv/bin/python ../sensor/venv/bin/python tools/imu_log.py -t 20 --plot
+# or:  pip3 install pyserial
+python3 tools/imu_log.py -t 20 --plot
+```
+
+`imu_log.py` logs to CSV and prints the two things that matter at bring-up:
+
+1. **Scale check** — `|acc|` must average ~**1.000 g** at rest. This is not
+   ceremony: a framing/scaling mismatch in the earlier sensor project made it
+   read 0.58–0.78 g, which silently poisons any filter built on top.
+2. **Axis check** — per-axis mean/std/min/max swing, so rotating the board about
+   one axis at a time shows you exactly which column responds. It also prints an
+   accel-derived roll/pitch for the last sample.
+
+## Firmware output
+
+```
+# I,t_ms,gx,gy,gz,ax,ay,az     raw int16 counts, gyro bias removed
+I,1523,12,-4,7,410,-215,16250
+# S,t_ms,gx,gy,gz,ax,ay,az     mdps and mg
+S,1523,183,-61,107,50,-26,1983
+```
+
+`#` lines are comments; skip them when parsing.
+
+## Commands (single line, newline-terminated)
+
+| Cmd | Action |
+|---|---|
+| `?` | status: WHO_AM_I, address, samples/errors, gyro bias |
+| `i` | rescan the I²C bus and re-probe the IMU |
+| `r` / `s` / `x` | stream raw counts / scaled units / stop |
+| `z` | **zero the gyro** — averages 200 samples while still |
+| `c` | clear the gyro bias |
+| `t` | one sample + die temperature |
+| `O<a>,<g>` | set ODR codes, e.g. `O6,6` = 416 Hz both |
+| `F<a>,<g>` | set full scale, e.g. `F2,1` = ±4 g, ±500 dps |
+
+ODR codes: `0`=off `1`=12.5 `2`=26 `3`=52 `4`=104 `5`=208 `6`=416 `7`=833
+`8`=1667 `9`=3333 `10`=6667 Hz.
+Accel FS: `0`=2g `1`=16g `2`=4g `3`=8g. Gyro FS: `0`=250 `1`=500 `2`=1000 `3`=2000 dps.
+
+## Register facts used (from ST's own driver header)
+
+Taken from `ism330is_reg.h` as shipped inside MEMS Studio, not from memory:
+
+```
+WHO_AM_I  0x0F -> 0x22          CTRL1_XL 0x10   CTRL2_G 0x11
+CTRL3_C   0x12  bit2 IF_INC, bit6 BDU
+OUTX_L_G  0x22 .. 0x2D          gyro X/Y/Z then accel X/Y/Z, int16 LE
+```
+
+Gyro and accel outputs are **contiguous**, so a whole inertial sample is a single
+12-byte burst read. `IF_INC` is what makes that legal and `BDU` prevents a sample
+being torn by concurrent output refresh — both matter for a control loop that
+polls this from a timer.
+
+## Status
+
+- Firmware **builds clean** (`-Wall -Wextra`), 9.1 KB flash / 2.6 KB RAM.
+- **Not yet hardware-verified**: the timing of flashing it depends on the
+  NUCLEO-C092RC being plugged in with the adapter wired per the table above.
+  The first flash should be treated as a wiring test — `?` and `i` will report
+  exactly what answered on the bus.
