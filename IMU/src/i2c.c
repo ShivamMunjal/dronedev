@@ -62,14 +62,19 @@ static void i2c_gpio_manual(void)
     GPIOB->BSRR = (1u << 8) | (1u << 9);      /* both released high */
 }
 
-static void i2c_periph_init(uint32_t af)
+/* Peripheral setup only - no GPIO, so callers can put I2C1 on any pins. */
+static void i2c_periph_setup(void)
 {
     RCC->APBENR1 |= RCC_APBENR1_I2C1EN;
 
     I2Cx->CR1 = 0u;                       /* disable while reconfiguring */
     I2Cx->TIMINGR = I2C_TIMINGR_VAL;      /* 100 kHz @ 48 MHz kernel clock  */
     I2Cx->CR1 = I2C_CR1_PE;               /* enable, analog filter enabled  */
+}
 
+static void i2c_periph_init(uint32_t af)
+{
+    i2c_periph_setup();
     i2c_gpio_af(af);
 }
 
@@ -77,6 +82,53 @@ void i2c_init_with_af(uint32_t af)
 {
     s_af = af;
     i2c_periph_init(af);
+}
+
+/* ---- pin probing ------------------------------------------------------- */
+static GPIO_TypeDef *port_from_char(char c)
+{
+    switch (c) {
+    case 'A': return GPIOA;
+    case 'B': return GPIOB;
+    case 'C': return GPIOC;
+    default:  return 0;
+    }
+}
+
+/* One pin -> alternate function, open drain, pull-up (I2C-ready). */
+static void gpio_af_config(GPIO_TypeDef *p, uint8_t pin, uint32_t af)
+{
+    if (!p || pin > 15u) return;
+
+    if (p == GPIOA)      RCC->IOPENR |= RCC_IOPENR_GPIOAEN;
+    else if (p == GPIOB) RCC->IOPENR |= RCC_IOPENR_GPIOBEN;
+    else if (p == GPIOC) RCC->IOPENR |= RCC_IOPENR_GPIOCEN;
+
+    const uint32_t sh = (uint32_t)pin * 2u;
+    p->MODER   = (p->MODER   & ~(3u << sh)) | (2u << sh);   /* alternate fn  */
+    p->OTYPER |= (1u << pin);                              /* open drain    */
+    p->OSPEEDR = (p->OSPEEDR & ~(3u << sh)) | (3u << sh);   /* high speed    */
+    p->PUPDR   = (p->PUPDR   & ~(3u << sh)) | (1u << sh);   /* pull-up       */
+
+    const uint32_t ash = ((uint32_t)pin & 7u) * 4u;
+    p->AFR[pin >> 3] = (p->AFR[pin >> 3] & ~(0xFu << ash)) | ((af & 0xFu) << ash);
+}
+
+/* Put I2C1 on arbitrary pins. Used by the pin-probe mode when the adapter's
+ * pinout is unknown: the caller connects two candidate signal pins and this
+ * sweeps every AF until a device answers. Returns 0 if the pins are valid. */
+int i2c_init_on_pins(char scl_port, uint8_t scl_pin,
+                     char sda_port, uint8_t sda_pin, uint32_t af)
+{
+    GPIO_TypeDef *scl = port_from_char(scl_port);
+    GPIO_TypeDef *sda = port_from_char(sda_port);
+    if (!scl || !sda) return -1;
+
+    gpio_af_config(scl, scl_pin, af);
+    gpio_af_config(sda, sda_pin, af);
+    i2c_periph_setup();
+    s_af = af;
+    return 0;
 }
 
 /* Clock out up to 9 pulses on SCL to free a slave holding SDA low. */

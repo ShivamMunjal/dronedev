@@ -226,6 +226,65 @@ static void emit(const ism_sample_t *s, uint32_t t_ms)
     uart_puts("\r\n");
 }
 
+/* ── pin probe: find SCL/SDA when the adapter's pinout is unknown ─────── */
+
+/* Parse "B6" -> ('B', 6). Accepts upper or lower case port letter. */
+static int parse_pin(const char **p, char *port, uint8_t *pin)
+{
+    char c = *(*p)++;
+    if (c >= 'a' && c <= 'f') c = (char)(c - 'a' + 'A');
+    if (c < 'A' || c > 'F') return -1;
+    *port = c;
+    uint32_t v = 0; int n = 0;
+    while (**p >= '0' && **p <= '9') { v = v * 10u + (uint32_t)(**p - '0'); (*p)++; n++; }
+    if (n == 0 || v > 15u) return -1;
+    *pin = (uint8_t)v;
+    return 0;
+}
+
+static void probe_pins(const char *spec)
+{
+    char sc, dc; uint8_t sp = 0, dp = 0;
+    const char *p = spec;
+
+    if (parse_pin(&p, &sc, &sp) != 0 || *p++ != ',' || parse_pin(&p, &dc, &dp) != 0) {
+        uart_puts("# usage: p<scl>,<sda>   e.g. pB6,B7\n");
+        uart_puts("#   ONLY pass pins confirmed to be signals, never VDD/GND\n");
+        return;
+    }
+
+    uart_puts("# probing I2C1 on SCL="); uart_putc(sc); uart_print_uint(sp);
+    uart_puts(" SDA="); uart_putc(dc); uart_print_uint(dp);
+    uart_puts("  (sweeping AF 0..15)\n");
+
+    int found_af = -1; uint8_t found_addr = 0;
+    for (uint32_t af = 0; af <= 15u; af++) {
+        if (i2c_init_on_pins(sc, sp, dc, dp, af) != 0) continue;
+        for (int i = 0; i < 2; i++) {
+            uint8_t a = (i == 0) ? ISM330IS_ADDR_LO : ISM330IS_ADDR_HI;
+            if (i2c_ping(a) != 0) continue;
+            /* Confirm it really is the IMU, not some other device. */
+            uint8_t who = 0;
+            if (i2c_read_reg(a, ISM_WHO_AM_I, &who, 1u) == 0 && who == ISM_ID_ISM330IS) {
+                found_af = (int)af; found_addr = a;
+                break;
+            }
+        }
+        if (found_af >= 0) break;
+    }
+
+    if (found_af >= 0) {
+        uart_puts("# FOUND ISM330IS at 0x"); uart_print_hex8(found_addr);
+        uart_puts(" with AF "); uart_print_int((int32_t)found_af); uart_puts("\n");
+    } else {
+        uart_puts("# no ISM330IS on that pair - check the pin labels, try another\n");
+    }
+
+    /* Restore the normal bus so streaming works again. */
+    i2c_init_with_af(I2C_AF);
+    imu_bring_up();
+}
+
 /* ── command handling ──────────────────────────────────────────────────── */
 
 /* Parse up to n comma-separated unsigned ints from s. Returns how many were
@@ -251,6 +310,7 @@ static void process_line(char *line)
     switch (line[0]) {
     case '?': status(); break;
     case 'i': bus_scan(); imu_bring_up(); print_csv_header(); break;
+    case 'p': case 'P': probe_pins(line + 1); print_csv_header(); break;
 
     case 'r': s_stream = STREAM_RAW;    print_csv_header(); break;
     case 's': s_stream = STREAM_SCALED; print_csv_header(); break;

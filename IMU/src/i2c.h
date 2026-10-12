@@ -6,6 +6,11 @@
 /* I2C1 master on PB8 = SCL, PB9 = SDA (default AF6, see board.h).
  * Returns 0 on success, negative on error. */
 void i2c_init_with_af(uint32_t af);
+/* Put I2C1 on arbitrary pins (pin-probe mode, used when the adapter's pinout
+ * is unknown). af 0..15 is swept by the caller when the AF is not known.
+ * Returns 0 for valid pins, -1 for an unknown port letter. */
+int  i2c_init_on_pins(char scl_port, uint8_t scl_pin,
+                      char sda_port, uint8_t sda_pin, uint32_t af);
 int  i2c_ping(uint8_t addr7);
 int  i2c_read_reg(uint8_t addr7, uint8_t reg, uint8_t *buf, uint32_t len);
 int  i2c_write_reg16(uint8_t addr7, uint8_t reg, uint16_t value);
