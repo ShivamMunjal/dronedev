@@ -19,7 +19,24 @@
 #include "i2c.h"
 #include "system.h"
 
-#define I2Cx             I2C1
+/* The bus is selectable at runtime so the IMU can live on I2C2 while the
+ * PMU keeps I2C1 (PB8/PB9) to itself - two independent peripherals, no
+ * arbitration, and the IMU is not competing with the PMU's polling. */
+static I2C_TypeDef *s_i2c = I2C1;
+#define I2Cx            s_i2c
+
+void i2c_select(uint8_t instance)
+{
+    if (instance == 2u) {
+        s_i2c = I2C2;
+        RCC->APBENR1 |= RCC_APBENR1_I2C2EN;
+    } else {
+        s_i2c = I2C1;
+        RCC->APBENR1 |= RCC_APBENR1_I2C1EN;
+    }
+}
+
+I2C_TypeDef *i2c_instance(void) { return s_i2c; }
 /* Bounded spin count for a flag wait. A byte on a 100 kHz bus is ~90 us, so
  * this is generously long, but short enough that scanning 112 addresses
  * cannot stall the boot. */
@@ -65,7 +82,9 @@ static void i2c_gpio_manual(void)
 /* Peripheral setup only - no GPIO, so callers can put I2C1 on any pins. */
 static void i2c_periph_setup(void)
 {
-    RCC->APBENR1 |= RCC_APBENR1_I2C1EN;
+    /* enable whichever peripheral i2c_select() chose */
+    if (s_i2c == I2C2) RCC->APBENR1 |= RCC_APBENR1_I2C2EN;
+    else               RCC->APBENR1 |= RCC_APBENR1_I2C1EN;
 
     I2Cx->CR1 = 0u;                       /* disable while reconfiguring */
     I2Cx->TIMINGR = I2C_TIMINGR_VAL;      /* 100 kHz @ 48 MHz kernel clock  */

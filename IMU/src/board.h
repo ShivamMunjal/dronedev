@@ -26,7 +26,25 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-/* ---- I2C bus ---- */
+/* ---- I2C bus ----
+ * The IMU runs on **I2C2** so that the PMU keeps **I2C1** (PB8/PB9) to itself:
+ * two independent peripherals, so the IMU never waits on the PMU's polling.
+ *
+ *   PB10 = I2C2_SCL  (AF14)   <- from the STM32C092RC datasheet AF table
+ *   PB11 = I2C2_SDA  (AF14)
+ *
+ * Both pins are unused by the 6 motors, LEDs, button, USART2 and SWD, so this
+ * costs nothing. (Do NOT use the PA9/PA10 I2C2 option here - PA10 is motor M6
+ * in the MultiMotor pin map - and avoid PB3, which is SWO/JTDO.)
+ */
+#define IMU_I2C_INSTANCE    2u      /* 1 = I2C1 (PB8/PB9), 2 = I2C2 */
+#define IMU_I2C_SCL_PORT    'B'
+#define IMU_I2C_SCL_PIN     10u
+#define IMU_I2C_SDA_PORT    'B'
+#define IMU_I2C_SDA_PIN     11u
+#define IMU_I2C_AF          14u     /* I2C2 on PB10/PB11 = AF14 */
+
+/* I2C1 (PB8/PB9) is left free for the PM02D power module. */
 #define I2C_AF              6u          /* I2C1 on PB8/PB9 = AF6 (UM3353 Tbl 13) */
 #define I2C_AF_ALT          7u          /* fallback AF, probed automatically      */
 

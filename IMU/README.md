@@ -22,15 +22,31 @@ here** — which is where the sensor has to end up anyway for closed-loop contro
 
 ## Wiring
 
+The IMU uses **I2C2 on PB10/PB11**, so the PMU keeps **I2C1 on PB8/PB9** to
+itself. They are separate peripherals: the IMU never waits on the PMU's polling,
+and no addressing or arbitration is involved.
+
 ```
-NUCLEO-C092RC                     STEVAL-MKI230KA (ISM330IS)
-  CN10 pin 3  PB8  I2C1_SCL  -->  SCL / SPC
-  CN10 pin 5  PB9  I2C1_SDA  <->  SDA / SDI
-  3V3                        -->  VDD  and  VDDIO     (1.71-3.6 V)
-  GND                        -->  GND
-                                  CS   -> leave HIGH (low selects SPI)
-                                  SA0/SDO -> GND = 0x6A, 3V3 = 0x6B
+NUCLEO-C092RC                     sensor board (MKI230A J1 / MKIGIBV5 DIL24)
+  PB10  I2C2_SCL (AF14)  -->  SCL / SPC
+  PB11  I2C2_SDA (AF14)  <->  SDA / SDI
+  3V3                    -->  VDD  and  VDDIO   (1.71-3.6 V)
+  GND                    -->  GND
+                              CS  -> 3V3   (low selects SPI; I2C goes silent)
+                              SA0/SDO -> GND = 0x6A, 3V3 = 0x6B
+  PB8/PB9 (I2C1)         --   left free for the PM02D power module
 ```
+
+Pin/AF source: STM32C092RC datasheet alternate-function table -
+`PB10 = I2C2_SCL @ AF14`, `PB11 = I2C2_SDA @ AF14`, verified by column
+alignment. Other I2C2 options exist (PA9/PA11/PA12/PB13/PB14) but **PA9/PA10 is
+not usable here because PA10 is motor M6** in the MultiMotor pin map, and PB3
+is SWO/JTDO. PB10/PB11 collide with nothing.
+
+To move the IMU to different pins or back to I2C1, edit the four `IMU_I2C_*`
+defines in `src/board.h` - the driver takes the instance, port letters, pins
+and AF from there. If the AF is unknown, `i2c_init_on_pins()` accepts any AF and
+the `p` probe command sweeps 0..15 to find it.
 
 The PM02D power module can share this bus — INA228 `0x45` / INA226 `0x41` do not
 collide with the ISM330IS at `0x6A`/`0x6B`. **Both addresses are probed**, so you

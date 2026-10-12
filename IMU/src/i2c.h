@@ -5,6 +5,10 @@
 
 /* I2C1 master on PB8 = SCL, PB9 = SDA (default AF6, see board.h).
  * Returns 0 on success, negative on error. */
+/* Select the I2C peripheral: 1 = I2C1 (PB8/PB9), 2 = I2C2 (e.g. PB10/PB11).
+ * Enables that peripheral's clock. Independent of the pin choice below. */
+void i2c_select(uint8_t instance);
+
 void i2c_init_with_af(uint32_t af);
 /* Put I2C1 on arbitrary pins (pin-probe mode, used when the adapter's pinout
  * is unknown). af 0..15 is swept by the caller when the AF is not known.

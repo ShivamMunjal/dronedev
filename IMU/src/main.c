@@ -48,6 +48,8 @@ static uint32_t s_bad = 0;                     /* samples with a torn read / NAC
 
 /* ── helpers ───────────────────────────────────────────────────────────── */
 
+static void imu_bus_init(void);      /* defined below, used by the pin probe */
+
 static void print_csv_header(void)
 {
     if (s_stream == STREAM_RAW) {
@@ -281,8 +283,17 @@ static void probe_pins(const char *spec)
     }
 
     /* Restore the normal bus so streaming works again. */
-    i2c_init_with_af(I2C_AF);
+    imu_bus_init();
     imu_bring_up();
+}
+
+/* Bring up the IMU's own bus (I2C2 on PB10/PB11 by default). The PMU's I2C1 on
+ * PB8/PB9 is a separate peripheral and is left untouched. */
+static void imu_bus_init(void)
+{
+    i2c_select(IMU_I2C_INSTANCE);
+    (void)i2c_init_on_pins(IMU_I2C_SCL_PORT, IMU_I2C_SCL_PIN,
+                           IMU_I2C_SDA_PORT, IMU_I2C_SDA_PIN, IMU_I2C_AF);
 }
 
 /* ── command handling ──────────────────────────────────────────────────── */
@@ -383,7 +394,7 @@ int main(void)
     uart_puts("\n\n=== IMU raw reader - NUCLEO-C092RC + STEVAL-MKI230KA (ISM330IS) ===\n");
     uart_puts("# data is raw sensor counts; no filtering, no fusion\n");
 
-    i2c_init_with_af(I2C_AF);
+    imu_bus_init();
     bus_scan();
     imu_bring_up();
     print_csv_header();
