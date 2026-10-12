@@ -22,26 +22,45 @@ here** — which is where the sensor has to end up anyway for closed-loop contro
 
 ## Wiring
 
-The IMU uses **I2C2 on PB10/PB11**, so the PMU keeps **I2C1 on PB8/PB9** to
-itself. They are separate peripherals: the IMU never waits on the PMU's polling,
-and no addressing or arbitration is involved.
+The IMU uses **I2C2**. The PMU owns **I2C1** on the Arduino header
+(**D14 = PB9 = I2C1_SDA**, **D15 = PB8 = I2C1_SCL** - UM3353 Table 12), and
+I2C2 is a separate peripheral, so the two never share a bus and the IMU never
+waits on the PMU's polling.
+
+Two presets in `src/board.h`, selected with one `#define`:
+
+| Preset | SCL | SDA | Where |
+|---|---|---|---|
+| `IMU_I2C_CFG_ARDUINO` *(default)* | **D8** = PA9, AF8 | **D5** = PB4, AF14 | Arduino header (CN5 pin 1 / CN9 pin 6) |
+| `IMU_I2C_CFG_MORPHO` | **PB10**, AF14 | **PB11**, AF14 | ST morpho (CN10 pin 34 / CN7 pin 37) |
 
 ```
-NUCLEO-C092RC                     sensor board (MKI230A J1 / MKIGIBV5 DIL24)
-  PB10  I2C2_SCL (AF14)  -->  SCL / SPC
-  PB11  I2C2_SDA (AF14)  <->  SDA / SDI
-  3V3                    -->  VDD  and  VDDIO   (1.71-3.6 V)
-  GND                    -->  GND
-                              CS  -> 3V3   (low selects SPI; I2C goes silent)
-                              SA0/SDO -> GND = 0x6A, 3V3 = 0x6B
-  PB8/PB9 (I2C1)         --   left free for the PM02D power module
+sensor board (MKI230A J1 / MKIGIBV5 DIL24)      NUCLEO-C092RC
+  SCL / SPC   -->  D8  (PA9,  I2C2_SCL)   [or PB10 on CN10 pin 34]
+  SDA / SDI   <->  D5  (PB4,  I2C2_SDA)   [or PB11 on CN7  pin 37]
+  VDD, VDDIO  -->  3V3
+  GND         -->  GND
+  CS          -->  3V3    (low selects SPI; then I2C is silent)
+  SA0/SDO     -->  GND = 0x6A, 3V3 = 0x6B
+  D14/D15 (PB9/PB8, I2C1) -- left alone, used by the PM02D
 ```
 
-Pin/AF source: STM32C092RC datasheet alternate-function table -
-`PB10 = I2C2_SCL @ AF14`, `PB11 = I2C2_SDA @ AF14`, verified by column
-alignment. Other I2C2 options exist (PA9/PA11/PA12/PB13/PB14) but **PA9/PA10 is
-not usable here because PA10 is motor M6** in the MultiMotor pin map, and PB3
-is SWO/JTDO. PB10/PB11 collide with nothing.
+Both presets are free of the 6 motor pins, the LEDs, the button, USART2 and
+SWD. Verified against the datasheet AF tables (AF number confirmed by column
+alignment, not eyeballed) and UM3353 for the connector positions:
+
+```
+PA9  = I2C2_SCL @ AF8     PB4  = I2C2_SDA @ AF14
+PB10 = I2C2_SCL @ AF14    PB11 = I2C2_SDA @ AF14
+PB13 = I2C2_SCL @ AF14    PB14 = I2C2_SDA @ AF14
+PA11 = I2C2_SCL @ AF6     PA12 = I2C2_SDA @ AF6
+PA6  = I2C2_SDA @ AF6     PA7  = I2C2_SCL @ AF6   (PA6/PA7 = motors M1/M2)
+```
+
+Note that **no I2C2 pair on the Arduino header shares a single AF** (PA9 is AF8
+while PB4 is AF14), which is why `i2c_init_on_pins2()` takes an independent AF
+per pin. `PA9/PA10` is the aligned pair but **PA10 is motor M6**, and PB3 is
+SWO/JTDO, so neither is used here.
 
 To move the IMU to different pins or back to I2C1, edit the four `IMU_I2C_*`
 defines in `src/board.h` - the driver takes the instance, port letters, pins

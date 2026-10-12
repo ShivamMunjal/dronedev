@@ -133,21 +133,30 @@ static void gpio_af_config(GPIO_TypeDef *p, uint8_t pin, uint32_t af)
     p->AFR[pin >> 3] = (p->AFR[pin >> 3] & ~(0xFu << ash)) | ((af & 0xFu) << ash);
 }
 
-/* Put I2C1 on arbitrary pins. Used by the pin-probe mode when the adapter's
- * pinout is unknown: the caller connects two candidate signal pins and this
- * sweeps every AF until a device answers. Returns 0 if the pins are valid. */
-int i2c_init_on_pins(char scl_port, uint8_t scl_pin,
-                     char sda_port, uint8_t sda_pin, uint32_t af)
+/* Put the I2C peripheral on arbitrary pins, with a *separate* AF for each
+ * signal. Some pins only reach I2C2 at different AF numbers (for example
+ * PB3 = I2C2_SCL @AF13 but PB4 = I2C2_SDA @AF14), so a single shared AF is
+ * not always enough. Used by the pin-probe mode: connect two candidate signal
+ * pins and this sweeps every AF until a device answers. Returns 0 if valid. */
+int i2c_init_on_pins2(char scl_port, uint8_t scl_pin, uint32_t scl_af,
+                      char sda_port, uint8_t sda_pin, uint32_t sda_af)
 {
     GPIO_TypeDef *scl = port_from_char(scl_port);
     GPIO_TypeDef *sda = port_from_char(sda_port);
     if (!scl || !sda) return -1;
 
-    gpio_af_config(scl, scl_pin, af);
-    gpio_af_config(sda, sda_pin, af);
+    gpio_af_config(scl, scl_pin, scl_af);
+    gpio_af_config(sda, sda_pin, sda_af);
     i2c_periph_setup();
-    s_af = af;
+    s_af = scl_af;              /* reported/logged AF */
     return 0;
+}
+
+/* Same AF on both pins - the common case. */
+int i2c_init_on_pins(char scl_port, uint8_t scl_pin,
+                     char sda_port, uint8_t sda_pin, uint32_t af)
+{
+    return i2c_init_on_pins2(scl_port, scl_pin, af, sda_port, sda_pin, af);
 }
 
 /* Clock out up to 9 pulses on SCL to free a slave holding SDA low. */

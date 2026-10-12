@@ -26,23 +26,51 @@
 #ifndef BOARD_H
 #define BOARD_H
 
-/* ---- I2C bus ----
- * The IMU runs on **I2C2** so that the PMU keeps **I2C1** (PB8/PB9) to itself:
- * two independent peripherals, so the IMU never waits on the PMU's polling.
+/* ---- I2C bus for the IMU --------------------------------------------
+ * The IMU runs on **I2C2** so the PMU keeps **I2C1** (D14/D15 = PB9/PB8) to
+ * itself. Two independent peripherals: the IMU never waits on the PMU's
+ * polling, and no addressing/arbitration is involved.
  *
- *   PB10 = I2C2_SCL  (AF14)   <- from the STM32C092RC datasheet AF table
- *   PB11 = I2C2_SDA  (AF14)
+ * Pin/AF data from the STM32C092RC datasheet AF tables, and the connector
+ * positions from UM3353 Table 12 (Arduino) / Table 13 (ST morpho):
  *
- * Both pins are unused by the 6 motors, LEDs, button, USART2 and SWD, so this
- * costs nothing. (Do NOT use the PA9/PA10 I2C2 option here - PA10 is motor M6
- * in the MultiMotor pin map - and avoid PB3, which is SWO/JTDO.)
+ *   PA9  = I2C2_SCL @ AF8    PB4  = I2C2_SDA @ AF14
+ *   PB10 = I2C2_SCL @ AF14   PB11 = I2C2_SDA @ AF14
+ *   PB13 = I2C2_SCL @ AF14   PB14 = I2C2_SDA @ AF14
+ *   PA11 = I2C2_SCL @ AF6    PA12 = I2C2_SDA @ AF6
+ *   PA6  = I2C2_SDA @ AF6    PA7  = I2C2_SCL @ AF6   (PA6/PA7 = motors M1/M2)
+ *
+ * Every I2C2 pair on the Arduino header needs *two different* AFs, which is
+ * why the driver takes a separate AF per pin.
+ *
+ * Pick one preset below. Both are free of the 6 motor pins, the LEDs, the
+ * button, USART2 and SWD.
  */
-#define IMU_I2C_INSTANCE    2u      /* 1 = I2C1 (PB8/PB9), 2 = I2C2 */
-#define IMU_I2C_SCL_PORT    'B'
-#define IMU_I2C_SCL_PIN     10u
-#define IMU_I2C_SDA_PORT    'B'
-#define IMU_I2C_SDA_PIN     11u
-#define IMU_I2C_AF          14u     /* I2C2 on PB10/PB11 = AF14 */
+#define IMU_I2C_CFG_ARDUINO  1   /* D8 = SCL, D5 = SDA   - stays on the    */
+#define IMU_I2C_CFG_MORPHO   2   /* CN5 pin 1 / CN9 pin 6  Arduino header. */
+                                 /* MORPHO: PB10 = CN10 pin 34 (SCL),      */
+                                 /*         PB11 = CN7  pin 37 (SDA)       */
+#define IMU_I2C_CFG  IMU_I2C_CFG_ARDUINO
+
+#if IMU_I2C_CFG == IMU_I2C_CFG_ARDUINO
+#  define IMU_I2C_SCL_PORT  'A'
+#  define IMU_I2C_SCL_PIN    9u          /* D8  on CN5 pin 1  */
+#  define IMU_I2C_SCL_AF     8u
+#  define IMU_I2C_SDA_PORT  'B'
+#  define IMU_I2C_SDA_PIN    4u          /* D5  on CN9 pin 6  */
+#  define IMU_I2C_SDA_AF    14u
+#elif IMU_I2C_CFG == IMU_I2C_CFG_MORPHO
+#  define IMU_I2C_SCL_PORT  'B'
+#  define IMU_I2C_SCL_PIN   10u          /* CN10 pin 34       */
+#  define IMU_I2C_SCL_AF    14u
+#  define IMU_I2C_SDA_PORT  'B'
+#  define IMU_I2C_SDA_PIN   11u          /* CN7  pin 37       */
+#  define IMU_I2C_SDA_AF    14u
+#else
+#  error "pick IMU_I2C_CFG_ARDUINO or IMU_I2C_CFG_MORPHO"
+#endif
+
+#define IMU_I2C_INSTANCE    2u      /* 2 = I2C2 (1 would be I2C1/PB8-PB9) */
 
 /* I2C1 (PB8/PB9) is left free for the PM02D power module. */
 #define I2C_AF              6u          /* I2C1 on PB8/PB9 = AF6 (UM3353 Tbl 13) */

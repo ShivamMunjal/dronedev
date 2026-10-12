@@ -292,8 +292,8 @@ static void probe_pins(const char *spec)
 static void imu_bus_init(void)
 {
     i2c_select(IMU_I2C_INSTANCE);
-    (void)i2c_init_on_pins(IMU_I2C_SCL_PORT, IMU_I2C_SCL_PIN,
-                           IMU_I2C_SDA_PORT, IMU_I2C_SDA_PIN, IMU_I2C_AF);
+    (void)i2c_init_on_pins2(IMU_I2C_SCL_PORT, IMU_I2C_SCL_PIN, IMU_I2C_SCL_AF,
+                            IMU_I2C_SDA_PORT, IMU_I2C_SDA_PIN, IMU_I2C_SDA_AF);
 }
 
 /* ── command handling ──────────────────────────────────────────────────── */
