@@ -45,6 +45,34 @@ sensor board (MKI230A J1 / MKIGIBV5 DIL24)      NUCLEO-C092RC
   D14/D15 (PB9/PB8, I2C1) -- left alone, used by the PM02D
 ```
 
+### STEVAL-MKIGIBV5 DIL24 output pinout
+
+The sensor board (STEVAL-MKI230A) is a **separate, passive** board: the MKIGIBV5
+is only wiring that brings the 230A's pins out to a 2x12 DIL24 header. **Both
+boards are required** - the GIBV5 has no sensor chip, so powering its header
+does not power the sensor. Join them with the flat cable from the kit.
+
+| DIL24 pin | Signal | Connect to |
+|---|---|---|
+| **1** | VDD | 3V3 *(measured)* |
+| **2** | VDDIO | 3V3 *(measured)* |
+| 3, 4, 5, 6 | OCS, SCX, SDX, OSDO | unused by ISM330IS |
+| 14 | INT1 | unused |
+| 15 | INT2 | unused |
+| **19** | **CS** | **3V3 - must be HIGH or I2C is disabled** |
+| **20** | **SCL** | C0 SCL |
+| **21** | **SDA** | C0 SDA |
+| **22** | SDO/SA0 | GND = 0x6A, 3V3 = 0x6B |
+| 7-13, 16-18, 23 | - | unused |
+| **24** | GND | GND *(measured)* |
+
+These numbers are one lower than the first version of this table, which was
+derived by assuming the schematic's net labels sat *below* their pin row. They
+sit *above* it. Two independent hardware measurements disprove the old map:
+pin 2 measured 3.3 V (the old map made it OCS, a signal), and pin 24 measured
+GND (the old map left it unlabelled, but GND must be a labelled pin). Both force
+the other alignment, shifting every signal pin by one.
+
 Both presets are free of the 6 motor pins, the LEDs, the button, USART2 and
 SWD. Verified against the datasheet AF tables (AF number confirmed by column
 alignment, not eyeballed) and UM3353 for the connector positions:

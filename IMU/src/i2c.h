@@ -19,6 +19,11 @@ int  i2c_init_on_pins(char scl_port, uint8_t scl_pin,
  * reach the peripheral at different AF numbers (PB3=AF13 / PB4=AF14). */
 int  i2c_init_on_pins2(char scl_port, uint8_t scl_pin, uint32_t scl_af,
                        char sda_port, uint8_t sda_pin, uint32_t sda_af);
+/* Electrical diagnostic: make a pin a high-impedance input with pull-up, then
+ * read it. 0 on an idle bus means something is clamping the line - typically a
+ * device that is connected but NOT powered. */
+void i2c_pin_input_pullup(char port, uint8_t pin);
+int  i2c_pin_read(char port, uint8_t pin);
 int  i2c_ping(uint8_t addr7);
 int  i2c_read_reg(uint8_t addr7, uint8_t reg, uint8_t *buf, uint32_t len);
 int  i2c_write_reg16(uint8_t addr7, uint8_t reg, uint16_t value);

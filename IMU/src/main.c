@@ -48,8 +48,6 @@ static uint32_t s_bad = 0;                     /* samples with a torn read / NAC
 
 /* ── helpers ───────────────────────────────────────────────────────────── */
 
-static void imu_bus_init(void);      /* defined below, used by the pin probe */
-
 static void print_csv_header(void)
 {
     if (s_stream == STREAM_RAW) {
@@ -66,11 +64,69 @@ static void print_int_field(int32_t v)
     uart_print_int(v);
 }
 
+/* ── IMU bus: candidate pin pairs ─────────────────────────────────────── */
+
+/* Every pair the sensor could plausibly be wired to, most likely first. The
+ * PMU keeps I2C1 on PB8/PB9, so I2C2 pairs lead. PA6/PA7 and PA10 are listed
+ * even though they are motor pins in the hexacopter: this is the standalone
+ * reader and no motors are driven, so probing them is harmless. */
+static const imu_bus_cand_t s_cands[] = {
+    { "D8/D5   PA9(AF8)  / PB4(AF14)   I2C2   [Arduino CN5-1 / CN9-6]",
+      'A',  9u,  8u, 'B',  4u, 14u, 2u },
+    { "PB10/PB11 (AF14)                 I2C2   [morpho CN10-34 / CN7-37]",
+      'B', 10u, 14u, 'B', 11u, 14u, 2u },
+    { "PB13/PB14 (AF14)                 I2C2   [morpho CN10-30 / CN10-28]",
+      'B', 13u, 14u, 'B', 14u, 14u, 2u },
+    { "D9/D5   PB3(AF13) / PB4(AF14)    I2C2   [Arduino CN5-2 / CN9-6]",
+      'B',  3u, 13u, 'B',  4u, 14u, 2u },
+    { "D8/D2   PA9(AF8)  / PA10(AF8)    I2C2   [Arduino CN5-1 / CN9-3]",
+      'A',  9u,  8u, 'A', 10u,  8u, 2u },
+    { "D12/D11 PA6(AF6)  / PA7(AF6)     I2C2   [Arduino CN5-5 / CN5-4]",
+      'A',  6u,  6u, 'A',  7u,  6u, 2u },
+    { "D15/D14 PB8(AF6)  / PB9(AF6)     I2C1   [shared with the PMU]",
+      'B',  8u,  6u, 'B',  9u,  6u, 1u },
+};
+
+#define N_CANDS (sizeof(s_cands) / sizeof(s_cands[0]))
+
+static const imu_bus_cand_t *s_bus = &s_cands[0];
+
+static void imu_bus_apply(const imu_bus_cand_t *c)
+{
+    i2c_select(c->instance);
+    (void)i2c_init_on_pins2(c->scl_port, c->scl_pin, c->scl_af,
+                            c->sda_port, c->sda_pin, c->sda_af);
+}
+
+/* Does an ISM330IS answer WHO_AM_I == 0x22 on the bus as currently wired?
+ * Checked at both addresses because SA0/SDO selects 0x6A or 0x6B. */
+static int ism_answers_here(void)
+{
+    uint8_t v = 0u;
+    if (i2c_read_reg(0x6Au, ISM_WHO_AM_I, &v, 1u) == 0 && v == ISM_ID_ISM330IS) return 0;
+    if (i2c_read_reg(0x6Bu, ISM_WHO_AM_I, &v, 1u) == 0 && v == ISM_ID_ISM330IS) return 0;
+    return -1;
+}
+
+/* Lock onto whichever pair the sensor actually answers on. */
+static int imu_bus_autodetect(void)
+{
+    for (unsigned i = 0u; i < N_CANDS; i++) {
+        imu_bus_apply(&s_cands[i]);
+        if (ism_answers_here() == 0) { s_bus = &s_cands[i]; return 0; }
+    }
+    s_bus = &s_cands[0];
+    imu_bus_apply(s_bus);
+    return -1;
+}
+
 /* ── I2C bus scan ──────────────────────────────────────────────────────── */
 
 static void bus_scan(void)
 {
-    uart_puts("# I2C1 scan (PB8/PB9): ");
+    uart_puts("# I2C scan on ");
+    uart_puts(s_bus->name);
+    uart_puts(": ");
     int found = 0;
     for (uint8_t a = 0x08u; a <= 0x77u; a++) {
         if (i2c_ping(a) == 0) {
@@ -283,17 +339,45 @@ static void probe_pins(const char *spec)
     }
 
     /* Restore the normal bus so streaming works again. */
-    imu_bus_init();
+    imu_bus_apply(s_bus);
     imu_bring_up();
 }
 
-/* Bring up the IMU's own bus (I2C2 on PB10/PB11 by default). The PMU's I2C1 on
- * PB8/PB9 is a separate peripheral and is left untouched. */
-static void imu_bus_init(void)
+/* ── electrical diagnostic ─────────────────────────────────────────────── */
+
+/* Read every candidate pair's pins as inputs with the internal pull-up.
+ *
+ * Interpretation, with nothing driven by us except a ~40k pull-up:
+ *   SCL=1 SDA=1  -> idle-high. Either nothing is attached, or a powered device
+ *                   is attached (no device, no external pull-up: still 1).
+ *   SCL=0 or SDA=0 -> something is clamping the line low. On an idle bus that
+ *                   almost always means a device is wired in but UNPOWERED:
+ *                   its ESD diodes conduct into its dead VDD rail. Check that
+ *                   VDD *and* VDDIO are actually at 3.3 V.
+ * This distinguishes "not connected" from "connected but not powered", which
+ * a bus scan alone cannot do (both look like silence).
+ */
+static void electrical_check(void)
 {
-    i2c_select(IMU_I2C_INSTANCE);
-    (void)i2c_init_on_pins2(IMU_I2C_SCL_PORT, IMU_I2C_SCL_PIN, IMU_I2C_SCL_AF,
-                            IMU_I2C_SDA_PORT, IMU_I2C_SDA_PIN, IMU_I2C_SDA_AF);
+    uart_puts("# electrical check - pins as inputs with internal pull-up\n");
+    uart_puts("#   1 = idle high   0 = held low (device present but unpowered?)\n");
+    for (unsigned i = 0u; i < N_CANDS; i++) {
+        const imu_bus_cand_t *c = &s_cands[i];
+        i2c_pin_input_pullup(c->scl_port, c->scl_pin);
+        i2c_pin_input_pullup(c->sda_port, c->sda_pin);
+        delay_us(200);
+        const int scl = i2c_pin_read(c->scl_port, c->scl_pin);
+        const int sda = i2c_pin_read(c->sda_port, c->sda_pin);
+        uart_puts("#   ");
+        uart_puts(c->name);
+        uart_puts("  SCL=");
+        uart_putc(scl == 1 ? '1' : '0');
+        uart_puts(" SDA=");
+        uart_putc(sda == 1 ? '1' : '0');
+        uart_puts((scl == 0 || sda == 0) ? "   <-- clamped low, check power\n"
+                                        : "\n");
+    }
+    imu_bus_apply(s_bus);       /* put the I2C peripheral back on the bus */
 }
 
 /* ── command handling ──────────────────────────────────────────────────── */
@@ -322,6 +406,20 @@ static void process_line(char *line)
     case '?': status(); break;
     case 'i': bus_scan(); imu_bring_up(); print_csv_header(); break;
     case 'p': case 'P': probe_pins(line + 1); print_csv_header(); break;
+    case 'b': case 'B':          /* re-run the pin-pair search */
+        if (imu_bus_autodetect() == 0) {
+            uart_puts("# BUS: sensor answered on ");
+            uart_puts(s_bus->name);
+            uart_putc('\n');
+        } else {
+            uart_puts("# BUS: no ISM330IS found on any known pin pair\n");
+        }
+        bus_scan();
+        imu_bring_up();
+        print_csv_header();
+        break;
+
+    case 'e': case 'E': electrical_check(); break;
 
     case 'r': s_stream = STREAM_RAW;    print_csv_header(); break;
     case 's': s_stream = STREAM_SCALED; print_csv_header(); break;
@@ -391,10 +489,20 @@ int main(void)
     system_clock_init();
     uart_init();
 
-    uart_puts("\n\n=== IMU raw reader - NUCLEO-C092RC + STEVAL-MKI230KA (ISM330IS) ===\n");
+    uart_puts("\n\n=== IMU raw reader - NUCLEO-C092RC + ISM330IS (STEVAL-MKI230A/BV5) ===\n");
     uart_puts("# data is raw sensor counts; no filtering, no fusion\n");
 
-    imu_bus_init();
+    if (imu_bus_autodetect() == 0) {
+        uart_puts("# BUS: sensor answered on ");
+        uart_puts(s_bus->name);
+        uart_putc('\n');
+    } else {
+        uart_puts("# BUS: no ISM330IS on any known pin pair, falling back to ");
+        uart_puts(s_bus->name);
+        uart_putc('\n');
+        uart_puts("#      check CS is pulled HIGH to 3V3, and that SCL/SDA are on\n");
+        uart_puts("#      a pair this firmware knows about (b re-runs the search)\n");
+    }
     bus_scan();
     imu_bring_up();
     print_csv_header();

@@ -50,7 +50,7 @@
 #define IMU_I2C_CFG_MORPHO   2   /* CN5 pin 1 / CN9 pin 6  Arduino header. */
                                  /* MORPHO: PB10 = CN10 pin 34 (SCL),      */
                                  /*         PB11 = CN7  pin 37 (SDA)       */
-#define IMU_I2C_CFG  IMU_I2C_CFG_ARDUINO
+#define IMU_I2C_CFG  IMU_I2C_CFG_MORPHO
 
 #if IMU_I2C_CFG == IMU_I2C_CFG_ARDUINO
 #  define IMU_I2C_SCL_PORT  'A'
@@ -71,6 +71,20 @@
 #endif
 
 #define IMU_I2C_INSTANCE    2u      /* 2 = I2C2 (1 would be I2C1/PB8-PB9) */
+
+/* One candidate pin pair for the IMU bus. At boot the firmware walks a list of
+ * these and locks onto the first pair where an ISM330IS answers WHO_AM_I, so
+ * that it does not matter which pair is actually wired. */
+typedef struct {
+    const char *name;
+    char        scl_port;
+    uint8_t     scl_pin;
+    uint8_t     scl_af;
+    char        sda_port;
+    uint8_t     sda_pin;
+    uint8_t     sda_af;
+    uint8_t     instance;       /* 1 = I2C1, 2 = I2C2 */
+} imu_bus_cand_t;
 
 /* I2C1 (PB8/PB9) is left free for the PM02D power module. */
 #define I2C_AF              6u          /* I2C1 on PB8/PB9 = AF6 (UM3353 Tbl 13) */

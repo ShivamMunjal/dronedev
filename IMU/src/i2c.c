@@ -114,6 +114,29 @@ static GPIO_TypeDef *port_from_char(char c)
     }
 }
 
+/* Leave the peripheral and make a pin a plain input with the internal pull-up
+ * enabled. Used by the electrical diagnostic: an *unpowered* device on the bus
+ * clamps SDA/SCL through its ESD diodes, so the line reads 0 instead of 1. */
+void i2c_pin_input_pullup(char port, uint8_t pin)
+{
+    GPIO_TypeDef *p = port_from_char(port);
+    if (!p || pin > 15u) return;
+    if (p == GPIOA)      RCC->IOPENR |= RCC_IOPENR_GPIOAEN;
+    else if (p == GPIOB) RCC->IOPENR |= RCC_IOPENR_GPIOBEN;
+    else if (p == GPIOC) RCC->IOPENR |= RCC_IOPENR_GPIOCEN;
+
+    const uint32_t sh = (uint32_t)pin * 2u;
+    p->MODER = (p->MODER & ~(3u << sh));                  /* input        */
+    p->PUPDR = (p->PUPDR & ~(3u << sh)) | (1u << sh);     /* pull-up      */
+}
+
+int i2c_pin_read(char port, uint8_t pin)
+{
+    GPIO_TypeDef *p = port_from_char(port);
+    if (!p || pin > 15u) return -1;
+    return (p->IDR & (1u << pin)) ? 1 : 0;
+}
+
 /* One pin -> alternate function, open drain, pull-up (I2C-ready). */
 static void gpio_af_config(GPIO_TypeDef *p, uint8_t pin, uint32_t af)
 {
