@@ -33,3 +33,8 @@ __pycache__/
 # The scripts, configs and captures the user wrote ARE tracked.
 sensor/venv/
 sensor/external/
+
+# ST MotionFX is ST proprietary (SLA0077) - vendored locally, not redistributed.
+# Run IMU/setup_motionfx.sh to populate it from an installed MEMS Studio.
+IMU/Middlewares/MotionFX/Lib/*.a
+IMU/Middlewares/MotionFX/Release_Notes.html

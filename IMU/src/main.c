@@ -36,9 +36,10 @@
 #include "uart.h"
 #include "i2c.h"
 #include "ism330is.h"
+#include "fusion.h"
 
 /* Stream modes */
-enum { STREAM_RAW = 0, STREAM_SCALED = 1 };
+enum { STREAM_RAW = 0, STREAM_SCALED = 1, STREAM_FUSED = 2, STREAM_OFF = -1 };
 static int s_stream = STREAM_RAW;
 
 static int32_t s_gyro_bias[3] = { 0, 0, 0 };   /* raw LSB */
@@ -53,6 +54,10 @@ static void print_csv_header(void)
 {
     if (s_stream == STREAM_RAW) {
         uart_puts("# I,t_ms,gx,gy,gz,ax,ay,az   (raw int16 counts, gyro bias removed)\n");
+    } else if (s_stream == STREAM_FUSED) {
+        uart_puts("# E,t_ms,roll_mdeg,pitch_mdeg,yaw_mdeg,gbx_mdps,gby_mdps,gbz_mdps\n");
+        uart_puts("#   MotionFX 6X (accel+gyro). roll/pitch are accel-aided;\n");
+        uart_puts("#   yaw is gyro-only and WILL drift - no magnetometer on ISM330IS.\n");
     } else {
         uart_puts("# S,t_ms,gx,gy,gz,ax,ay,az   (mdps, mg)\n");
     }
@@ -304,6 +309,37 @@ static void emit(const ism_sample_t *s, uint32_t t_ms)
     int32_t gx = s->gx - s_gyro_bias[0];
     int32_t gy = s->gy - s_gyro_bias[1];
     int32_t gz = s->gz - s_gyro_bias[2];
+
+    if (s_stream == STREAM_FUSED) {
+        /* Attitude line. 'E' for Euler, angles in milli-degrees so the control
+         * path never has to parse a float. Yaw is gyro-only and drifts - see
+         * fusion.c. */
+        static uint32_t prev_ms = 0u;
+        static int have_prev = 0;
+        float dt = have_prev ? (float)(t_ms - prev_ms) / 1000.0f : 0.01f;
+        prev_ms = t_ms;
+        have_prev = 1;
+        if (dt <= 0.0f || dt > 0.5f) dt = 0.01f;
+
+        /* Feed the fused path bias-free gyro, but leave the raw stream alone. */
+        ism_sample_t b = *s;
+        b.gx = (int16_t)gx; b.gy = (int16_t)gy; b.gz = (int16_t)gz;
+
+        fusion_euler_t e;
+        if (fusion_step(&b, dt, &e) != 0) {
+            return;
+        }
+        uart_putc('E');
+        print_int_field((int32_t)t_ms);
+        print_int_field(e.roll_mdeg);
+        print_int_field(e.pitch_mdeg);
+        print_int_field(e.yaw_mdeg);
+        print_int_field(e.gbias_mdps[0]);
+        print_int_field(e.gbias_mdps[1]);
+        print_int_field(e.gbias_mdps[2]);
+        uart_puts("\r\n");
+        return;
+    }
 
     if (s_stream == STREAM_RAW) {
         uart_putc('I');
@@ -568,7 +604,8 @@ static void process_line(char *line)
 
     case 'r': s_stream = STREAM_RAW;    print_csv_header(); break;
     case 's': s_stream = STREAM_SCALED; print_csv_header(); break;
-    case 'x': s_stream = -1; uart_puts("# streaming stopped (r or s to resume)\n"); break;
+    case 'a': case 'A': s_stream = STREAM_FUSED; fusion_init(); print_csv_header(); break;
+    case 'x': s_stream = STREAM_OFF; uart_puts("# streaming stopped (r, s or a to resume)\n"); break;
 
     case 'z': gyro_zero(); break;
     case 'c': s_gyro_bias[0] = s_gyro_bias[1] = s_gyro_bias[2] = 0;

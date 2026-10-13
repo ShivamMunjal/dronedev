@@ -23,6 +23,7 @@ set(CPU_FLAGS -mcpu=cortex-m0plus -mthumb -mfloat-abi=soft)
 
 add_compile_options(
   ${CPU_FLAGS}
+  -fshort-wchar
   -ffunction-sections
   -fdata-sections
   -Wall
@@ -34,7 +35,17 @@ add_compile_definitions(STM32C092xx)
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/src
   ${CMAKE_CURRENT_SOURCE_DIR}/cmsis
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmsis/core)
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmsis/core
+  ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/MotionFX/Inc)
+
+# ST MotionFX (Cortex-M0+ build). Populate with ./setup_motionfx.sh; the .a is
+# ST proprietary (SLA0077) so it is intentionally not committed.
+set(MOTIONFX_LIB ${CMAKE_CURRENT_SOURCE_DIR}/Middlewares/MotionFX/Lib/MotionFX_CM0P_wc16_ot.a)
+if(NOT EXISTS ${MOTIONFX_LIB})
+  message(WARNING
+    "MotionFX library missing - the fusion build will fail to link.\n"
+    "Run ./setup_motionfx.sh to copy it out of an installed MEMS Studio.")
+endif()
 
 set(LDSCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/linker/stm32c092rc.ld)
 
@@ -44,15 +55,28 @@ add_executable(imu_ism330is_c092rc.elf
   src/uart.c
   src/i2c.c
     src/ism330is.c
+  src/fusion.c
   src/main.c)
 
+# MotionFX is soft-float, so it drags in libm/libgcc. Group them AFTER the
+# library so the linker can resolve MotionFX's own references to math helpers.
 target_link_options(imu_ism330is_c092rc.elf PRIVATE
   ${CPU_FLAGS}
+  -fshort-wchar
+  # MotionFX_CM0P was built with 2-byte wchar_t; the toolchain's libm with 4.
+  # Neither library passes wchar_t across the boundary we use (floats only), so
+  # this is cosmetic - silenced rather than left to bury real linker output.
+  -Wl,--no-warn-mismatch
   -T${LDSCRIPT}
   -nostartfiles
   -Wl,--gc-sections
   -Wl,-Map=${CMAKE_CURRENT_BINARY_DIR}/imu_ism330is_c092rc.map
   -Wl,--print-memory-usage)
+
+target_link_libraries(imu_ism330is_c092rc.elf
+  ${MOTIONFX_LIB}
+  m
+  gcc)
 
 find_program(ARM_OBJCOPY arm-none-eabi-objcopy REQUIRED)
 find_program(ARM_SIZE    arm-none-eabi-size    REQUIRED)
