@@ -156,8 +156,19 @@ static void imu_report(uint8_t addr, uint8_t who, int rc)
         uart_puts("a device answered but WHO_AM_I=0x");
         uart_print_hex8(who);
         uart_puts(" != 0x22 - not an ISM330IS, check the wiring\n");
+    } else if (rc <= -3) {
+        /* The chip identified itself, so power and wiring are proven good -
+         * what failed is a configuration register WRITE. */
+        uart_puts("chip identified itself (WHO_AM_I=0x");
+        uart_print_hex8(who);
+        uart_puts(") but a register WRITE failed, rc=");
+        uart_print_int(rc);
+        uart_puts("\n#      (rc -3 = CTRL3_C write, -4 = ODR, -5 = FS;\n");
+        uart_puts("#       -2 from a write means the slave NACKed it)\n");
     } else {
-        uart_puts("not found at 0x6A or 0x6B - check VDD/VDDIO/GND/SCL/SDA\n");
+        uart_puts("not found at 0x6A or 0x6B (rc=");
+        uart_print_int(rc);
+        uart_puts(") - check VDD/VDDIO/GND/SCL/SDA\n");
     }
 }
 
@@ -420,6 +431,47 @@ static void process_line(char *line)
         break;
 
     case 'e': case 'E': electrical_check(); break;
+
+    case 'V': case 'v': {                 /* bus speed, kHz */
+        uint32_t a[1];
+        if (parse_csv_u(line + 1, a, 1) != 1) {
+            uart_puts("# usage: V<kHz> where kHz is 100, 50, 20 or 10\n");
+            uart_puts("#   if the part answers at 10 kHz but not 100 kHz, the bus\n");
+            uart_puts("#   needs real pull-ups (4.7k from SDA and SCL to 3V3)\n");
+            break;
+        }
+        uint32_t t = 0u;
+        if      (a[0] == 100u) t = 0xB4201113u;   /* SCLH=17  SCLL=19 -> 105 kHz */
+        else if (a[0] ==  50u) t = 0xB4201313u;   /* SCLH=19  SCLL=19 ->  50 kHz */
+        else if (a[0] ==  20u) t = 0xB4206363u;   /* SCLH=99  SCLL=99 ->  20 kHz */
+        else if (a[0] ==  10u) t = 0xB420C7C7u;   /* SCLH=199 SCLL=199 -> 10 kHz */
+        if (!t) { uart_puts("# speeds available: 100, 50, 20, 10 kHz\n"); break; }
+        i2c_set_timing(t);
+        uart_puts("# I2C bus set to ");
+        uart_print_uint(a[0]);
+        uart_puts(" kHz\n");
+        bus_scan();
+        break;
+    }
+
+    case 'W': case 'w': {           /* write-test: W<reg>,<value> then read back */
+        uint32_t a[2];
+        if (parse_csv_u(line + 1, a, 2) != 2) {
+            uart_puts("# usage: W<reg>,<value>  writes an 8-bit register and reads it back\n");
+            break;
+        }
+        const uint8_t reg = (uint8_t)a[0], val = (uint8_t)a[1];
+        int wrc = i2c_write_reg8(0x6Au, reg, val);
+        uint8_t rb = 0u;
+        int rrc = i2c_read_reg(0x6Au, reg, &rb, 1u);
+        uart_puts("# write reg 0x"); uart_print_hex8(reg);
+        uart_puts(" <- 0x"); uart_print_hex8(val);
+        uart_puts("  write_rc="); uart_print_int(wrc);
+        uart_puts("  read_rc=");  uart_print_int(rrc);
+        uart_puts("  readback=0x"); uart_print_hex8(rb);
+        uart_putc('\n');
+        break;
+    }
 
     case 'r': s_stream = STREAM_RAW;    print_csv_header(); break;
     case 's': s_stream = STREAM_SCALED; print_csv_header(); break;

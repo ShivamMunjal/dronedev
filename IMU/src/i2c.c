@@ -137,6 +137,17 @@ int i2c_pin_read(char port, uint8_t pin)
     return (p->IDR & (1u << pin)) ? 1 : 0;
 }
 
+/* Change the bus speed. Low speeds matter here: with only the MCU's weak
+ * (~40k) internal pull-up and the adapter's 330 pF line caps, the rise time is
+ * ~13 us, which is far too slow for 100 kHz. If a device answers at 10 kHz but
+ * not at 100 kHz, the bus needs real pull-up resistors (4.7k to 3V3). */
+void i2c_set_timing(uint32_t timingr)
+{
+    I2Cx->CR1 &= ~I2C_CR1_PE;
+    I2Cx->TIMINGR = timingr;
+    I2Cx->CR1 |= I2C_CR1_PE;
+}
+
 /* One pin -> alternate function, open drain, pull-up (I2C-ready). */
 static void gpio_af_config(GPIO_TypeDef *p, uint8_t pin, uint32_t af)
 {
@@ -400,13 +411,17 @@ int i2c_ping(uint8_t addr7)
 
     const int rc = wait_isr(I2C_ISR_TXIS);
 
-    I2Cx->CR2 |= I2C_CR2_STOP;    /* abort the 1-byte transfer */
+    /* Always terminate the transfer. On a NACK with AUTOEND=0 the controller
+     * raises NACKF but NOT STOPF, and it does not release the bus - so the old
+     * code left the peripheral mid-transfer. That is why a ping could succeed
+     * inside a scan and then fail on the very next call, making probe_addr
+     * report "not found" even though WHO_AM_I read back perfectly.
+     * i2c_rearm() toggles PE, which aborts the transfer and frees SDA/SCL. */
     if (rc == 0) {
-        wait_stop();              /* ACKed: a real STOP completes */
-    } else if (rc == -1) {
-        i2c_rearm();              /* no bus activity at all */
+        I2Cx->CR2 |= I2C_CR2_STOP;    /* ACKed: a real STOP completes */
+        wait_stop();
     } else {
-        i2c_clear_flags();        /* NACK: no STOPF to wait for */
+        i2c_rearm();                  /* NACK or timeout: abort + release */
     }
 
     return rc;

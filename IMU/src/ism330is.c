@@ -34,13 +34,17 @@ int ism_write_reg(uint8_t reg, uint8_t val)
 
 /* Try one address: read WHO_AM_I and check it against the expected value.
  * Returns 0 on a match, -1 if nothing answered, -2 if the wrong value came
- * back (the caller reports it - a wrong ID usually means a different part). */
+ * back (the caller reports it - a wrong ID usually means a different part).
+ *
+ * This deliberately does NOT pre-flight with i2c_ping(): a WHO_AM_I read is a
+ * complete, self-terminating transaction and is the real test. Requiring a
+ * separate ping first made bring-up fail whenever a preceding scan had left
+ * the controller holding the bus. */
 static int probe_addr(uint8_t addr, uint8_t *who_out)
 {
     uint8_t who = 0u;
     s_addr = addr;
 
-    if (i2c_ping(addr) != 0) return -1;
     if (ism_read_reg(ISM_WHO_AM_I, &who) != 0) return -1;
 
     *who_out = who;
@@ -59,11 +63,10 @@ int ism_init(uint8_t *addr_used, uint8_t *who_out)
     s_addr = 0u;
     for (int i = 0; i < 2; i++) {
         rc = probe_addr(addrs[i], &who);
-        if (rc <= 0) {
-            last_who = who;
-            break;
-        }
         last_who = who;
+        /* stop on a match, or on a device that answered with the wrong ID
+         * (worth reporting rather than silently trying the other address) */
+        if (rc == 0 || rc == -2) break;
         s_addr = 0u;
     }
 

@@ -24,6 +24,9 @@ int  i2c_init_on_pins2(char scl_port, uint8_t scl_pin, uint32_t scl_af,
  * device that is connected but NOT powered. */
 void i2c_pin_input_pullup(char port, uint8_t pin);
 int  i2c_pin_read(char port, uint8_t pin);
+/* Change the bus speed (TIMINGR), e.g. to diagnose slow rise times caused by
+ * missing external pull-ups. */
+void i2c_set_timing(uint32_t timingr);
 int  i2c_ping(uint8_t addr7);
 int  i2c_read_reg(uint8_t addr7, uint8_t reg, uint8_t *buf, uint32_t len);
 int  i2c_write_reg16(uint8_t addr7, uint8_t reg, uint16_t value);

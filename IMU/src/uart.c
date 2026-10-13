@@ -57,7 +57,18 @@ void uart_puts(const char *s)
 
 int uart_getc(void)
 {
-    if ((USART2->ISR & USART_ISR_RXNE_RXFNE) == 0u) {
+    const uint32_t isr = USART2->ISR;
+
+    /* A latched error stops RX from progressing and swallows every following
+     * character. That happens routinely here: the 100 Hz stream keeps the CPU
+     * busy enough that a typed command is overrun. Clearing it requires reading
+     * ISR (done above, into isr) and then DR - which is why RDR is read here.
+     * Without this, 'x' and '?' were silently eaten while streaming. */
+    if (isr & (USART_ISR_ORE | USART_ISR_FE | USART_ISR_NE | USART_ISR_PE)) {
+        (void)USART2->RDR;
+        return -1;
+    }
+    if ((isr & USART_ISR_RXNE_RXFNE) == 0u) {
         return -1;
     }
     return (int)(USART2->RDR & 0xFFu);
