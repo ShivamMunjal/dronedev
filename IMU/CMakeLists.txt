@@ -49,6 +49,12 @@ endif()
 
 set(LDSCRIPT ${CMAKE_CURRENT_SOURCE_DIR}/linker/stm32c092rc.ld)
 
+# Make the linker script a real build dependency. Without this, passing it via
+# -T is invisible to ninja/make: editing stack size, memory regions or section
+# placement leaves a STALE binary in place and `ninja: no work to do`. That is
+# how a stack increase silently appeared to have no effect.
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS ${LDSCRIPT})
+
 add_executable(imu_ism330is_c092rc.elf
   src/startup.c
   src/system.c
@@ -77,6 +83,9 @@ target_link_libraries(imu_ism330is_c092rc.elf
   ${MOTIONFX_LIB}
   m
   gcc)
+
+set_target_properties(imu_ism330is_c092rc.elf PROPERTIES
+  LINK_DEPENDS ${LDSCRIPT})
 
 find_program(ARM_OBJCOPY arm-none-eabi-objcopy REQUIRED)
 find_program(ARM_SIZE    arm-none-eabi-size    REQUIRED)

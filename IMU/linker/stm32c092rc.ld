@@ -11,8 +11,14 @@ ENTRY(Reset_Handler)
 
 _estack = ORIGIN(RAM) + LENGTH(RAM);   /* top of SRAM = initial SP */
 
-_Min_Heap_Size  = 0x200;   /* 512 B */
-_Min_Stack_Size = 0x800;   /* 2 KB  */
+_Min_Heap_Size  = 0x400;   /* 1 KB */
+/* 8 KB, not the 2 KB this started with. MotionFX_CM0P_update runs a soft-float
+ * quaternion path whose atan2/sqrt chains are deep, and at 2 KB the stack
+ * silently overran into the heap: the symptom was not a clean fault but a
+ * CORRUPTED STACK, so the CPU later returned into i2c_read_reg from a function
+ * that had never called it and the board just stopped answering. Total RAM use
+ * is ~6 KB of 30 KB, so the headroom is free. */
+_Min_Stack_Size = 0x2000;  /* 8 KB  */
 
 MEMORY
 {
