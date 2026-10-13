@@ -23,7 +23,11 @@ int  i2c_init_on_pins2(char scl_port, uint8_t scl_pin, uint32_t scl_af,
  * read it. 0 on an idle bus means something is clamping the line - typically a
  * device that is connected but NOT powered. */
 void i2c_pin_input_pullup(char port, uint8_t pin);
+void i2c_pin_input(char port, uint8_t pin, uint32_t pull);   /* 0=none 1=up 2=down */
 int  i2c_pin_read(char port, uint8_t pin);
+/* Capacitance probe: drive low, release, count until high. Bigger = more
+ * capacitance = the pin is really wired to something. */
+uint32_t i2c_pin_rise_ticks(char port, uint8_t pin);
 /* Change the bus speed (TIMINGR), e.g. to diagnose slow rise times caused by
  * missing external pull-ups. */
 void i2c_set_timing(uint32_t timingr);

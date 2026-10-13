@@ -44,6 +44,7 @@ static int s_stream = STREAM_RAW;
 static int32_t s_gyro_bias[3] = { 0, 0, 0 };   /* raw LSB */
 static uint32_t s_samples = 0;
 static uint32_t s_errors  = 0;
+static uint32_t s_last_err = 0;   /* millis of the last printed stream error */
 static uint32_t s_bad = 0;                     /* samples with a torn read / NACK */
 
 /* ── helpers ───────────────────────────────────────────────────────────── */
@@ -71,31 +72,40 @@ static void print_int_field(int32_t v)
  * even though they are motor pins in the hexacopter: this is the standalone
  * reader and no motors are driven, so probing them is harmless. */
 static const imu_bus_cand_t s_cands[] = {
-    { "D8/D5   PA9(AF8)  / PB4(AF14)   I2C2   [Arduino CN5-1 / CN9-6]",
-      'A',  9u,  8u, 'B',  4u, 14u, 2u },
+    /* Current wiring (morpho): PB10 = CN10 pin 34, PB11 = CN7 pin 37 */
     { "PB10/PB11 (AF14)                 I2C2   [morpho CN10-34 / CN7-37]",
       'B', 10u, 14u, 'B', 11u, 14u, 2u },
+    /* Escape hatch: keep SDA on PB11, move only SCL to PB13 (CN10 pin 30).
+     * Useful when one morpho pin is suspect - which is exactly the case when
+     * PB10 fails to show an external pull-up. */
+    { "PB13/PB11 (AF14)                 I2C2   [morpho CN10-30 / CN7-37]",
+      'B', 13u, 14u, 'B', 11u, 14u, 2u },
     { "PB13/PB14 (AF14)                 I2C2   [morpho CN10-30 / CN10-28]",
       'B', 13u, 14u, 'B', 14u, 14u, 2u },
+    { "D8/D5   PA9(AF8)  / PB4(AF14)    I2C2   [Arduino CN5-1 / CN9-6]",
+      'A',  9u,  8u, 'B',  4u, 14u, 2u },
     { "D9/D5   PB3(AF13) / PB4(AF14)    I2C2   [Arduino CN5-2 / CN9-6]",
       'B',  3u, 13u, 'B',  4u, 14u, 2u },
     { "D8/D2   PA9(AF8)  / PA10(AF8)    I2C2   [Arduino CN5-1 / CN9-3]",
       'A',  9u,  8u, 'A', 10u,  8u, 2u },
     { "D12/D11 PA6(AF6)  / PA7(AF6)     I2C2   [Arduino CN5-5 / CN5-4]",
       'A',  6u,  6u, 'A',  7u,  6u, 2u },
-    { "D15/D14 PB8(AF6)  / PB9(AF6)     I2C1   [shared with the PMU]",
+    /* The pair that is proven to work (sensor answered here at 100 Hz). */
+    { "D15/D14 PB8(AF6)  / PB9(AF6)     I2C1   [Arduino CN5-10 / CN5-9]",
       'B',  8u,  6u, 'B',  9u,  6u, 1u },
 };
 
 #define N_CANDS (sizeof(s_cands) / sizeof(s_cands[0]))
 
 static const imu_bus_cand_t *s_bus = &s_cands[0];
+static uint8_t s_af_used = 0u;      /* AF that actually worked, for reporting */
 
 static void imu_bus_apply(const imu_bus_cand_t *c)
 {
     i2c_select(c->instance);
     (void)i2c_init_on_pins2(c->scl_port, c->scl_pin, c->scl_af,
                             c->sda_port, c->sda_pin, c->sda_af);
+    s_af_used = c->scl_af;
 }
 
 /* Does an ISM330IS answer WHO_AM_I == 0x22 on the bus as currently wired?
@@ -108,12 +118,33 @@ static int ism_answers_here(void)
     return -1;
 }
 
-/* Lock onto whichever pair the sensor actually answers on. */
+/* Lock onto whichever pair the sensor actually answers on.
+ *
+ * The configured AF is tried first (fast, and the intended case). If that
+ * fails the whole 0..15 range is swept on both pins, because an AF number read
+ * out of a datasheet table by column alignment can be off and there is no point
+ * making a human rewire to discover that. Sweeping only ever configures the
+ * candidate pins as open-drain alternate-function outputs, so it cannot damage
+ * anything, and none of the candidates are SWD pins. */
 static int imu_bus_autodetect(void)
 {
     for (unsigned i = 0u; i < N_CANDS; i++) {
-        imu_bus_apply(&s_cands[i]);
-        if (ism_answers_here() == 0) { s_bus = &s_cands[i]; return 0; }
+        const imu_bus_cand_t *c = &s_cands[i];
+
+        imu_bus_apply(c);
+        if (ism_answers_here() == 0) { s_bus = c; return 0; }
+
+        for (uint32_t af = 0u; af <= 15u; af++) {
+            if (af == c->scl_af && af == c->sda_af) continue;   /* done above */
+            i2c_select(c->instance);
+            if (i2c_init_on_pins2(c->scl_port, c->scl_pin, af,
+                                  c->sda_port, c->sda_pin, af) != 0) continue;
+            if (ism_answers_here() == 0) {
+                s_bus = c;
+                s_af_used = (uint8_t)af;
+                return 0;
+            }
+        }
     }
     s_bus = &s_cands[0];
     imu_bus_apply(s_bus);
@@ -182,12 +213,9 @@ static void imu_bring_up(void)
     if (s_imu_ok) {
         uint32_t aug, gmd;
         ism_sensitivity(&aug, &gmd);
-        uart_puts("# IMU configured: +-");
-        uart_print_uint(aug >= 1000u ? aug / 1000u : aug);
-        uart_puts(aug >= 1000u ? " g" : " ...");
-        uart_puts(", accel sens ");
+        uart_puts("# IMU configured: accel ");
         uart_print_uint(aug);
-        uart_puts(" ug/LSB, gyro sens ");
+        uart_puts(" ug/LSB, gyro ");
         uart_print_uint(gmd);
         uart_puts(" mdps/LSB\n");
         delay_ms(50);                     /* let the first samples settle */
@@ -326,27 +354,31 @@ static void probe_pins(const char *spec)
     uart_puts(" SDA="); uart_putc(dc); uart_print_uint(dp);
     uart_puts("  (sweeping AF 0..15)\n");
 
-    int found_af = -1; uint8_t found_addr = 0;
-    for (uint32_t af = 0; af <= 15u; af++) {
-        if (i2c_init_on_pins(sc, sp, dc, dp, af) != 0) continue;
-        for (int i = 0; i < 2; i++) {
-            uint8_t a = (i == 0) ? ISM330IS_ADDR_LO : ISM330IS_ADDR_HI;
-            if (i2c_ping(a) != 0) continue;
-            /* Confirm it really is the IMU, not some other device. */
-            uint8_t who = 0;
-            if (i2c_read_reg(a, ISM_WHO_AM_I, &who, 1u) == 0 && who == ISM_ID_ISM330IS) {
-                found_af = (int)af; found_addr = a;
-                break;
+    int found_af = -1; uint8_t found_addr = 0; uint8_t found_inst = 1u;
+    for (uint8_t inst = 1u; inst <= 2u && found_af < 0; inst++) {
+        for (uint32_t af = 0; af <= 15u; af++) {
+            i2c_select(inst);
+            if (i2c_init_on_pins(sc, sp, dc, dp, af) != 0) continue;
+            for (int i = 0; i < 2; i++) {
+                uint8_t a = (i == 0) ? ISM330IS_ADDR_LO : ISM330IS_ADDR_HI;
+                uint8_t who = 0;
+                /* Who_AM_I is the real test - a bare address ping is not. */
+                if (i2c_read_reg(a, ISM_WHO_AM_I, &who, 1u) == 0 &&
+                    who == ISM_ID_ISM330IS) {
+                    found_af = (int)af; found_addr = a; found_inst = inst;
+                    break;
+                }
             }
+            if (found_af >= 0) break;
         }
-        if (found_af >= 0) break;
     }
 
     if (found_af >= 0) {
         uart_puts("# FOUND ISM330IS at 0x"); uart_print_hex8(found_addr);
-        uart_puts(" with AF "); uart_print_int((int32_t)found_af); uart_puts("\n");
+        uart_puts(" with AF "); uart_print_int((int32_t)found_af);
+        uart_puts(" on I2C"); uart_print_uint(found_inst); uart_puts("\n");
     } else {
-        uart_puts("# no ISM330IS on that pair - check the pin labels, try another\n");
+        uart_puts("# no ISM330IS on that pair, either I2C instance, any AF\n");
     }
 
     /* Restore the normal bus so streaming works again. */
@@ -391,6 +423,66 @@ static void electrical_check(void)
     imu_bus_apply(s_bus);       /* put the I2C peripheral back on the bus */
 }
 
+/* ── locate external pull-ups ──────────────────────────────────────────── */
+
+/* Scan every I/O as an input with the *internal pull-down* on. A pin only reads
+ * 1 if something outside the MCU is pulling it up: the internal pull-down is
+ * ~40k, so any external pull-up (like a 4.7k to 3V3) wins easily.
+ *
+ * This is how we find out which MCU pins the bus resistors were actually
+ * soldered to, without trusting anybody's pin counting - if the two hits are not
+ * the pins you think you wired, that is the answer.
+ *
+ * PA2/PA3 are skipped because they are the console UART; PA13/PA14 are skipped
+ * because they are SWD. Everything scanned is only ever an input, so it cannot
+ * damage or drive anything. */
+static void find_pullups(void)
+{
+    uart_puts("# scanning all I/O for external pull-ups (internal pull-DOWN on;\n");
+    uart_puts("#  a pin reading 1 has something pulling it up outside the MCU)\n");
+    uart_puts("# NOTE: pins you have wired to 3V3 directly (CS, VDD) will NOT\n");
+    uart_puts("#       show here - only real pull-UP resistors do.\n");
+
+    static const char ports[4] = { 'A', 'B', 'C', 'D' };
+    for (unsigned k = 0u; k < 4u; k++) {
+        const char port = ports[k];
+        for (uint8_t pin = 0u; pin < 16u; pin++) {
+            if (port == 'A' && (pin == 2u || pin == 3u)) continue;    /* UART    */
+            if (port == 'A' && (pin == 13u || pin == 14u)) continue;  /* SWD     */
+
+            i2c_pin_input(port, pin, 2u);        /* input, pull-DOWN */
+            delay_us(300);
+            if (i2c_pin_read(port, pin) == 1) {
+                uart_puts("#   pull-up detected on P");
+                uart_putc(port);
+                uart_print_uint(pin);
+                uart_putc('\n');
+            }
+        }
+    }
+    uart_puts("# scan done. Expect exactly the SCL and SDA pins of each bus in use,\n");
+    uart_puts("# plus any onboard pull-ups (NRST/BOOT0 etc.).\n");
+
+    /* Capacitance probe. A pin with a resistor but NO wire rises almost at
+     * once; a pin really wired to the adapter rises slowly through its 330 pF.
+     * Comparing pins is the point - the absolute numbers are not calibrated, so
+     * look for the outlier, not the value: a wired pin reads far higher than
+     * an unwired one on this board. */
+    uart_puts("# rise-time probe (authority only as a comparison between pins):\n");
+    static const struct { char port; uint8_t pin; } probe[] = {
+        { 'B',  8u }, { 'B',  9u }, { 'B', 10u }, { 'B', 11u },
+    };
+    for (unsigned i = 0u; i < sizeof(probe) / sizeof(probe[0]); i++) {
+        const uint32_t t = i2c_pin_rise_ticks(probe[i].port, probe[i].pin);
+        uart_puts("#   P"); uart_putc(probe[i].port); uart_print_uint(probe[i].pin);
+        uart_puts(" rise="); uart_print_uint(t);
+        uart_puts(t > 25u ? "   <- wire/capacitance present\n"
+                          : "   <- looks bare (resistor but no wire)\n");
+    }
+
+    imu_bus_apply(s_bus);       /* put the I2C peripheral back on the bus */
+}
+
 /* ── command handling ──────────────────────────────────────────────────── */
 
 /* Parse up to n comma-separated unsigned ints from s. Returns how many were
@@ -431,6 +523,7 @@ static void process_line(char *line)
         break;
 
     case 'e': case 'E': electrical_check(); break;
+    case 'L': find_pullups(); break;          /* Locate external pull-ups */
 
     case 'V': case 'v': {                 /* bus speed, kHz */
         uint32_t a[1];
@@ -547,6 +640,8 @@ int main(void)
     if (imu_bus_autodetect() == 0) {
         uart_puts("# BUS: sensor answered on ");
         uart_puts(s_bus->name);
+        uart_puts(" AF=");
+        uart_print_uint(s_af_used);
         uart_putc('\n');
     } else {
         uart_puts("# BUS: no ISM330IS on any known pin pair, falling back to ");
@@ -554,6 +649,9 @@ int main(void)
         uart_putc('\n');
         uart_puts("#      check CS is pulled HIGH to 3V3, and that SCL/SDA are on\n");
         uart_puts("#      a pair this firmware knows about (b re-runs the search)\n");
+        /* Auto-run the resistor locator so a plain reset is enough to get the
+         * answer - it does not depend on a typed command being received. */
+        find_pullups();
     }
     bus_scan();
     imu_bring_up();
@@ -591,10 +689,15 @@ int main(void)
                 emit(&s, now);
             } else {
                 s_bad++;
-                if (++s_errors >= 20u) {
-                    /* Persistent failure: say so once rather than spamming. */
-                    s_errors = 0;
-                    uart_puts("# ERROR: repeated I2C read failures - check wiring\n");
+                s_errors++;
+                /* Rate-limit the message to once a second. At 100 Hz the old
+                 * counter re-printed every 20 failures forever, and that steady
+                 * output is what starved the ST-Link bridge of host->device
+                 * traffic, so typed commands were only sometimes delivered. */
+                const uint32_t t_err = system_millis();
+                if ((uint32_t)(t_err - s_last_err) >= 1000u) {
+                    s_last_err = t_err;
+                    uart_puts("# ERROR: no data from the IMU - check wiring, or run 'L'\n");
                 }
             }
         }

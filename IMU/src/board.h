@@ -50,6 +50,11 @@
 #define IMU_I2C_CFG_MORPHO   2   /* CN5 pin 1 / CN9 pin 6  Arduino header. */
                                  /* MORPHO: PB10 = CN10 pin 34 (SCL),      */
                                  /*         PB11 = CN7  pin 37 (SDA)       */
+/* AF numbers below are placeholders only: the boot auto-detect sweeps AF 0..15
+ * on every candidate pair and reports what actually worked, because reading
+ * these out of the datasheet's alternate-function tables by column alignment
+ * proved unreliable. Measured on hardware: PB10/PB11 reach I2C2 at **AF6**,
+ * not the AF14 the table alignment suggested. */
 #define IMU_I2C_CFG  IMU_I2C_CFG_MORPHO
 
 #if IMU_I2C_CFG == IMU_I2C_CFG_ARDUINO
@@ -62,10 +67,10 @@
 #elif IMU_I2C_CFG == IMU_I2C_CFG_MORPHO
 #  define IMU_I2C_SCL_PORT  'B'
 #  define IMU_I2C_SCL_PIN   10u          /* CN10 pin 34       */
-#  define IMU_I2C_SCL_AF    14u
+#  define IMU_I2C_SCL_AF     6u          /* MEASURED, not AF14 */
 #  define IMU_I2C_SDA_PORT  'B'
 #  define IMU_I2C_SDA_PIN   11u          /* CN7  pin 37       */
-#  define IMU_I2C_SDA_AF    14u
+#  define IMU_I2C_SDA_AF     6u          /* MEASURED, not AF14 */
 #else
 #  error "pick IMU_I2C_CFG_ARDUINO or IMU_I2C_CFG_MORPHO"
 #endif

@@ -110,24 +110,38 @@ static GPIO_TypeDef *port_from_char(char c)
     case 'A': return GPIOA;
     case 'B': return GPIOB;
     case 'C': return GPIOC;
+    case 'D': return GPIOD;      /* this part has GPIOD; PD8/PD9 sit on CN10 */
     default:  return 0;
     }
 }
 
-/* Leave the peripheral and make a pin a plain input with the internal pull-up
- * enabled. Used by the electrical diagnostic: an *unpowered* device on the bus
- * clamps SDA/SCL through its ESD diodes, so the line reads 0 instead of 1. */
-void i2c_pin_input_pullup(char port, uint8_t pin)
+/* Leave the peripheral and make a pin a plain input with a chosen internal
+ * pull (0 = none, 1 = pull-up, 2 = pull-down).
+ *
+ * Used by the electrical diagnostics:
+ *  - pull-up:  an *unpowered* device on the bus clamps SDA/SCL through its ESD
+ *              diodes, so the line reads 0 instead of 1.
+ *  - pull-down: an external pull-up (e.g. the user's 4.7k) wins over the weak
+ *              internal pull-down (~40k), so the pin reads 1 only if something
+ *              outside the MCU is pulling it up. That is how the scanner locates
+ *              resistors that were soldered on without knowing the pin name. */
+void i2c_pin_input(char port, uint8_t pin, uint32_t pull)
 {
     GPIO_TypeDef *p = port_from_char(port);
     if (!p || pin > 15u) return;
     if (p == GPIOA)      RCC->IOPENR |= RCC_IOPENR_GPIOAEN;
     else if (p == GPIOB) RCC->IOPENR |= RCC_IOPENR_GPIOBEN;
     else if (p == GPIOC) RCC->IOPENR |= RCC_IOPENR_GPIOCEN;
+    else if (p == GPIOD) RCC->IOPENR |= RCC_IOPENR_GPIODEN;
 
     const uint32_t sh = (uint32_t)pin * 2u;
-    p->MODER = (p->MODER & ~(3u << sh));                  /* input        */
-    p->PUPDR = (p->PUPDR & ~(3u << sh)) | (1u << sh);     /* pull-up      */
+    p->MODER = (p->MODER & ~(3u << sh));                          /* input */
+    p->PUPDR = (p->PUPDR & ~(3u << sh)) | ((pull & 3u) << sh);
+}
+
+void i2c_pin_input_pullup(char port, uint8_t pin)
+{
+    i2c_pin_input(port, pin, 1u);
 }
 
 int i2c_pin_read(char port, uint8_t pin)
@@ -135,6 +149,31 @@ int i2c_pin_read(char port, uint8_t pin)
     GPIO_TypeDef *p = port_from_char(port);
     if (!p || pin > 15u) return -1;
     return (p->IDR & (1u << pin)) ? 1 : 0;
+}
+
+/* Drive a pin low, release it into an input with the internal pull-up, and
+ * count how long it takes to read high. That time is ~ R*C, so it acts as a
+ * capacitance probe: a bare pin rises in well under a microsecond, while a net
+ * that is really wired to the adapter carries its 330 pF and takes ~1.5 us with
+ * a 4.7k pull-up. This answers "is anything actually connected here?", which a
+ * pull-up scan cannot - that only proves a resistor is fitted. */
+uint32_t i2c_pin_rise_ticks(char port, uint8_t pin)
+{
+    GPIO_TypeDef *p = port_from_char(port);
+    if (!p || pin > 15u) return 0u;
+
+    const uint32_t sh = (uint32_t)pin * 2u;
+    i2c_pin_input(port, pin, 0u);
+    p->MODER = (p->MODER & ~(3u << sh)) | (1u << sh);   /* output    */
+    p->OTYPER &= ~(1u << pin);                          /* push-pull  */
+    p->BRR = (1u << pin);                               /* drive low  */
+    delay_us(500);                                      /* let it settle */
+
+    i2c_pin_input(port, pin, 1u);                       /* release, pull-up */
+
+    uint32_t n = 0u;
+    while ((p->IDR & (1u << pin)) == 0u && n < 2000000u) n++;
+    return n;
 }
 
 /* Change the bus speed. Low speeds matter here: with only the MCU's weak
@@ -156,6 +195,7 @@ static void gpio_af_config(GPIO_TypeDef *p, uint8_t pin, uint32_t af)
     if (p == GPIOA)      RCC->IOPENR |= RCC_IOPENR_GPIOAEN;
     else if (p == GPIOB) RCC->IOPENR |= RCC_IOPENR_GPIOBEN;
     else if (p == GPIOC) RCC->IOPENR |= RCC_IOPENR_GPIOCEN;
+    else if (p == GPIOD) RCC->IOPENR |= RCC_IOPENR_GPIODEN;
 
     const uint32_t sh = (uint32_t)pin * 2u;
     p->MODER   = (p->MODER   & ~(3u << sh)) | (2u << sh);   /* alternate fn  */
