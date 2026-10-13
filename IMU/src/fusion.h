@@ -22,6 +22,10 @@ typedef struct {
 /* Configure MotionFX. Safe to call repeatedly. */
 void fusion_init(void);
 
+/* Enable the hardware blocks MotionFX depends on (the CRC peripheral, used by
+ * its licence check). Must be called before any MotionFX_CM0P_* entry point. */
+void fusion_hw_prepare(void);
+
 /* One filter step. dt_s is seconds since the previous step.
  * Returns 0 on success. */
 int fusion_step(const ism_sample_t *s, float dt_s, fusion_euler_t *out);

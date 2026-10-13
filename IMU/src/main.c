@@ -37,6 +37,7 @@
 #include "i2c.h"
 #include "ism330is.h"
 #include "fusion.h"
+#include "motion_fx_cm0p.h"
 
 /* Stream modes */
 enum { STREAM_RAW = 0, STREAM_SCALED = 1, STREAM_FUSED = 2, STREAM_OFF = -1 };
@@ -692,6 +693,63 @@ int main(void)
     }
     bus_scan();
     imu_bring_up();
+
+    /* MotionFX self-test at boot. Doing this here rather than behind a command
+     * keeps the UART out of the equation: if the fusion path is broken it shows
+     * up in the banner, instead of looking like a dead command or a silent
+     * filter. It also proves the library runs on this M0+ before anything
+     * depends on it. */
+    if (s_imu_ok) {
+        char ver[24];
+        /* Walk MotionFX's init one call at a time and say so after each. If it
+         * stops mid-sequence the last line printed names the offending call,
+         * which is far cheaper than bisecting whole builds. */
+        uart_puts("# fx: hw prepare (CRC clock)...\n");
+        fusion_hw_prepare();
+        uart_puts("# fx: initialize...\n");
+        MotionFX_CM0P_initialize(MFX_CM0P_MCU_STM32);
+        uart_puts("# fx: initialize done\n");
+
+        uart_puts("# fx: setOrientation...\n");
+        MotionFX_CM0P_setOrientation("ENU", "ENU", "ENU");
+        uart_puts("# fx: setOrientation done\n");
+
+        uart_puts("# fx: enable_6X...\n");
+        MotionFX_CM0P_enable_6X(MFX_CM0P_ENGINE_ENABLE);
+        uart_puts("# fx: enable_6X done\n");
+
+        uart_puts("# fx: enable_9X(disable)...\n");
+        MotionFX_CM0P_enable_9X(MFX_CM0P_ENGINE_DISABLE);
+        uart_puts("# fx: enable_9X done\n");
+
+        uart_puts("# fx: enable_euler...\n");
+        MotionFX_CM0P_enable_euler(MFX_CM0P_ENGINE_ENABLE);
+        uart_puts("# fx: enable_euler done\n");
+
+        uart_puts("# fx: enable_gbias...\n");
+        MotionFX_CM0P_enable_gbias(MFX_CM0P_ENGINE_ENABLE);
+        uart_puts("# fx: enable_gbias done\n");
+
+        if (MotionFX_CM0P_GetLibVersion(ver) != 0u) {
+            uart_puts("# MotionFX version: "); uart_puts(ver); uart_putc('\n');
+        }
+
+        uart_puts("# fx: first update...\n");
+        ism_sample_t st;
+        if (ism_read_sample(&st) == 0) {
+            fusion_euler_t se;
+            if (fusion_step(&st, 0.01f, &se) == 0) {
+                uart_puts("# fusion selftest ok: roll=");
+                uart_print_int(se.roll_mdeg);
+                uart_puts(" pitch="); uart_print_int(se.pitch_mdeg);
+                uart_puts(" yaw=");   uart_print_int(se.yaw_mdeg);
+                uart_putc('\n');
+            } else {
+                uart_puts("# fusion selftest FAILED in fusion_step\n");
+            }
+        }
+    }
+
     print_csv_header();
 
     uint32_t next = system_millis();

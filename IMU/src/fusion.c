@@ -27,6 +27,7 @@
 
 #include "fusion.h"
 
+#include "stm32c0xx.h"
 #include "board.h"
 #include "ism330is.h"
 #include "motion_fx_cm0p.h"
@@ -47,9 +48,29 @@ static uint32_t s_updates = 0;
 #define FUSION_GYR_ORIENT  "ENU"
 #define FUSION_MAG_ORIENT  "ENU"
 
+/* MotionFX_CM0P_initialize performs a hardware licence check via the CRC
+ * peripheral: it writes 0xF407A5C2 to CRC->DR and expects the checksum
+ * 0xB5E8B5CD back (CRC-32/MPEG-2, poly 0x04C11DB7, init 0xFFFFFFFF - verified
+ * against the literal pool inside the library).
+ *
+ * If the CRC clock is off the write is dropped, the read returns 0, the check
+ * fails and the library branches to an explicit `b .` infinite trap at
+ * MotionFX_CM0P_initialize+0x4a - which looks exactly like a hang, with no
+ * fault, no watchdog and no output. That is why this must happen BEFORE the
+ * library is touched: the CRC clock is not enabled by anything else on this
+ * MCU, and the library only skips the check on Cortex-M4/M7 (it accepts CPUID
+ * part numbers 0xC24/0xC27; an M0+ reports 0xC60). */
+void fusion_hw_prepare(void)
+{
+    RCC->AHBENR |= RCC_AHBENR_CRCEN;
+    (void)RCC->AHBENR;          /* read back so the clock is live before use */
+}
+
 void fusion_init(void)
 {
     if (s_ready) return;
+
+    fusion_hw_prepare();
 
     MotionFX_CM0P_initialize(MFX_CM0P_MCU_STM32);
     MotionFX_CM0P_setOrientation(FUSION_ACC_ORIENT, FUSION_GYR_ORIENT,
