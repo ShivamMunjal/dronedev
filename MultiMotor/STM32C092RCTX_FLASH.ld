@@ -38,8 +38,8 @@ ENTRY(Reset_Handler)
 /* Highest address of the user mode stack */
 _estack = ORIGIN(RAM) + LENGTH(RAM); /* end of "RAM" Ram type memory */
 
-_Min_Heap_Size = 0x200; /* required amount of heap */
-_Min_Stack_Size = 0x400; /* required amount of stack */
+_Min_Heap_Size = 0x400; /* 1 KB: MotionFX soft-float scratch */
+_Min_Stack_Size = 0x2000; /* 8 KB: MotionFX atan2/sqrt chains are deep (see IMU linker note) */
 
 /* Memories definition */
 MEMORY

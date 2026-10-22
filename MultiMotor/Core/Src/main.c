@@ -6,6 +6,9 @@
 #include "main.h"
 #include "mixer.h"
 #include "pmu.h"
+#include "i2c.h"
+#include "ism330is.h"
+#include "fusion.h"
 
 /* ── Motor pin configuration ──────────────────────────────── */
 const MotorConfig motors[6] = {
@@ -35,6 +38,15 @@ volatile int32_t mix_in[4] = { MIXER_MIN_US, 0, 0, 0 };   /* thr, roll, pitch, y
  * ISR, but the UART messages are emitted from the main loop: writing from the
  * ISR could splice a line into the middle of the telemetry stream. */
 volatile uint8_t kill_event = 0;    /* 0 none, 1 killed, 2 recovered */
+
+/* ── IMU (ISM330IS on I2C2 PB10/PB11 + ST MotionFX 6X) ─────────────────── */
+static int      imu_ok        = 0;
+static int      imu_stream    = 1;           /* emit E, lines */
+static int32_t  imu_gbias[3]  = {0, 0, 0};   /* raw gyro bias, LSB */
+static uint32_t imu_last_tick = 0;
+static uint32_t imu_prev_tick = 0;
+static uint32_t imu_updates   = 0;
+static uint32_t imu_errors    = 0;
 
 /* 1 while the live geometry differs from what is stored in flash. Tracked in
  * firmware so a GUI that connects later still learns whether the layout on the
@@ -67,12 +79,20 @@ static void uart_send_char(uint8_t c);
 static void uart_send_str(const char *s);
 static void uart_send_uint(uint32_t v);
 static void uart_send_int(int32_t v);
+static void uart_send_hex8(uint8_t v);
 static void process_cmd(void);
 static void send_mixer_config(void);
 static void send_battery(void);
 static void send_pmu_identity(void);
 static void send_mix_state(void);
 static void mix_zero_in(void);
+static void imu_init(void);
+static void imu_poll(void);
+static void imu_zero_gyro(void);
+static void imu_status(void);
+uint32_t system_millis(void);
+void     delay_ms(uint32_t ms);
+void     delay_us(uint32_t us);
 
 /* low-level: write CCR immediately (no ramp) */
 static void apply_ccr(uint8_t motor, uint32_t ccr) {
@@ -147,6 +167,7 @@ int main(void)
      * Optional: if it is not connected, probing is bounded and the module is
      * simply left offline — the mixer and ESC control run unaffected. */
     static uint8_t pmu_was_online = 0;
+    i2c_select(1);                 /* PMU lives on I2C1 (PB8/PB9) */
     if (pmu_init() == 0) {
         const pmu_data_t *p = pmu_data();
         uart_send_str("PMU,");
@@ -159,6 +180,8 @@ int main(void)
         uart_send_str("PMU,NONE\r\n");
     }
     uart_send_str("DISARMED\r\n");
+
+    imu_init();                    /* ISM330IS on I2C2 + MotionFX 6X */
 
     uint32_t last_telem = 0;
     uint32_t last_ramp = 0;
@@ -203,6 +226,7 @@ int main(void)
         if ((sys_tick - last_pmu) >= 100) {
             uint32_t dt = sys_tick - last_pmu;
             last_pmu = sys_tick;
+            i2c_select(1);
             (void)pmu_read(dt);
         }
         if ((sys_tick - last_batt) >= 200) {
@@ -215,6 +239,8 @@ int main(void)
                 uart_send_str("PMU,LOST\r\n");
             }
         }
+
+        if (imu_ok) imu_poll();
 
         if (motor_state == ST_ARMED) {
             LL_GPIO_SetOutputPin(LED_GREEN_PORT, LED_GREEN_PIN);
@@ -336,6 +362,12 @@ static void uart_send_uint(uint32_t v) {
 static void uart_send_int(int32_t v) {
     if (v < 0) { uart_send_char('-'); uart_send_uint((uint32_t)(-(int64_t)v)); }
     else       { uart_send_uint((uint32_t)v); }
+}
+
+static void uart_send_hex8(uint8_t v) {
+    static const char hx[] = "0123456789ABCDEF";
+    uart_send_char(hx[(v >> 4) & 0xFu]);
+    uart_send_char(hx[v & 0xFu]);
 }
 
 /* ── Mixer / PMU reporting ── */
@@ -628,6 +660,117 @@ static void process_cmd(void) {
             uart_send_str("\r\n");
         }
     }
+    /* ── IMU: lowercase letters (uppercase belong to the motor/mixer) ── */
+    else if (c[0] == '?') {
+        imu_status();
+    }
+    else if (c[0] == 'a') {          /* start fused E stream */
+        imu_stream = 1;
+        uart_send_str("IMU,STREAM,ON\r\n");
+    }
+    else if (c[0] == 'x') {          /* stop fused E stream */
+        imu_stream = 0;
+        uart_send_str("IMU,STREAM,OFF\r\n");
+    }
+    else if (c[0] == 'z') {          /* zero gyro bias (hold still) */
+        imu_zero_gyro();
+    }
+}
+
+/* ── system/delay helpers (used by the IMU i2c + ism drivers) ── */
+uint32_t system_millis(void) { return sys_tick; }
+void delay_ms(uint32_t ms) { uint32_t t = sys_tick; while ((sys_tick - t) < ms) { } }
+void delay_us(uint32_t us) { for (volatile uint32_t i = 0; i < us * 10u; i++) { } }
+
+/* ── IMU: ISM330IS on I2C2 (PB10/PB11) + MotionFX 6X fusion ── */
+static void imu_init(void)
+{
+    i2c_select(2);
+    /* I2C2 on PB10 (CN10-34) / PB11 (CN7-37); AF6 verified on hardware. */
+    if (i2c_init_on_pins2('B', 10u, 6u, 'B', 11u, 6u) != 0) {
+        uart_send_str("IMU,NONE\r\n");
+        return;
+    }
+    uint8_t addr = 0u, who = 0u;
+    int rc = ism_init(&addr, &who);
+    if (rc == 0) {
+        fusion_init();
+        imu_ok = 1;
+        imu_prev_tick = sys_tick;
+        uart_send_str("IMU,ISM330IS,0x");
+        uart_send_hex8(addr);
+        uart_send_str("\r\n");
+    } else if (rc == -2) {
+        uart_send_str("IMU,BAD_ID,"); uart_send_uint(who); uart_send_str("\r\n");
+    } else {
+        uart_send_str("IMU,NONE\r\n");
+    }
+}
+
+static void send_imu_line(const fusion_euler_t *e)
+{
+    uart_send_char('E'); uart_send_char(',');
+    uart_send_uint(sys_tick);        uart_send_char(',');
+    uart_send_int(e->roll_mdeg);     uart_send_char(',');
+    uart_send_int(e->pitch_mdeg);    uart_send_char(',');
+    uart_send_int(e->yaw_mdeg);      uart_send_char(',');
+    uart_send_int(e->gbias_mdps[0]); uart_send_char(',');
+    uart_send_int(e->gbias_mdps[1]); uart_send_char(',');
+    uart_send_int(e->gbias_mdps[2]);
+    uart_send_str("\r\n");
+}
+
+static void imu_poll(void)
+{
+    if ((sys_tick - imu_last_tick) < 10u) return;      /* 100 Hz */
+    imu_last_tick = sys_tick;
+
+    i2c_select(2);
+    ism_sample_t s;
+    if (ism_read_sample(&s) != 0) { imu_errors++; return; }
+
+    float dt = (float)(sys_tick - imu_prev_tick) / 1000.0f;
+    imu_prev_tick = sys_tick;
+    if (dt <= 0.0f || dt > 0.5f) dt = 0.01f;
+
+    ism_sample_t b = s;
+    b.gx = (int16_t)(s.gx - imu_gbias[0]);
+    b.gy = (int16_t)(s.gy - imu_gbias[1]);
+    b.gz = (int16_t)(s.gz - imu_gbias[2]);
+
+    fusion_euler_t e;
+    if (fusion_step(&b, dt, &e) == 0) {
+        imu_updates++;
+        if (imu_stream) send_imu_line(&e);
+    }
+}
+
+static void imu_zero_gyro(void)
+{
+    if (!imu_ok) { uart_send_str("IMU,NONE\r\n"); return; }
+    int64_t ax = 0, ay = 0, az = 0; int n = 0;
+    for (int i = 0; i < 200; i++) {
+        i2c_select(2);
+        ism_sample_t s;
+        if (ism_read_sample(&s) == 0) { ax += s.gx; ay += s.gy; az += s.gz; n++; }
+        delay_ms(5);
+    }
+    if (n > 0) { imu_gbias[0] = (int32_t)(ax/n); imu_gbias[1] = (int32_t)(ay/n); imu_gbias[2] = (int32_t)(az/n); }
+    uart_send_str("IMU,GYRO_ZEROED,");
+    uart_send_int(imu_gbias[0]); uart_send_char(',');
+    uart_send_int(imu_gbias[1]); uart_send_char(',');
+    uart_send_int(imu_gbias[2]); uart_send_str("\r\n");
+}
+
+static void imu_status(void)
+{
+    uart_send_str("# ---- status ----\r\n# IMU      : ");
+    if (imu_ok) { uart_send_str("ISM330IS @0x"); uart_send_hex8(ism_addr()); }
+    else          uart_send_str("not detected");
+    uart_send_str("\r\n# fusion   : "); uart_send_uint(imu_updates);
+    uart_send_str(" updates, stream "); uart_send_str(imu_stream ? "ON" : "OFF");
+    uart_send_str("\r\n# imu errs : "); uart_send_uint(imu_errors);
+    uart_send_str("\r\n");
 }
 
 /* ── IRQ Handlers ── */

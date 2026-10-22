@@ -100,8 +100,24 @@ async function connectSerial() {
     serialParser = serial.pipe(new ReadlineParser({ delimiter: '\n' }));
     serialParser.on('data', (data) => {
         const line = data.toString().trim();
-        if (line.length > 0) {
-            broadcast({ type: 'telemetry', data: line });
+        if (line.length === 0) return;
+        broadcast({ type: 'telemetry', data: line });
+
+        /* Structured forwarding for the IMU page (served at /imu.html). The
+         * combined firmware streams E, (MotionFX attitude) alongside T,/B,/PMU.
+         * One serial owner, two dashboards. */
+        if (line.startsWith('E,')) {
+            const p = line.substring(2).split(',');
+            if (p.length >= 7) {
+                broadcast({
+                    type: 'e',
+                    t: +p[0],
+                    roll: +p[1] / 1000, pitch: +p[2] / 1000, yaw: +p[3] / 1000,
+                    gb: [+p[4] / 1000, +p[5] / 1000, +p[6] / 1000]
+                });
+            }
+        } else if (line[0] === '#') {
+            broadcast({ type: 'log', data: line });
         }
     });
 }
