@@ -140,12 +140,12 @@ aircraft yaws the wrong way, flip `dir` for that motor — do not rewire.
 
 | Motor | Pin | Angle | dir |
 |---|---|---|---|
-| M1 | PA6 | 30° | +1 |
-| M2 | PA7 | 90° | -1 |
-| M3 | PA4 | 150° | +1 |
-| M4 | PA8 | 210° | -1 |
-| M5 | PA1 | 270° | +1 |
-| M6 | PA10 | 330° | -1 |
+| M1 | PA6 | 30° | -1 |
+| M2 | PA7 | 90° | +1 |
+| M3 | PA4 | 210° | +1 |
+| M4 | PA8 | 270° | -1 |
+| M5 | PA1 | 150° | -1 |
+| M6 | PA10 | 330° | +1 |
 
 ### Mixing maths
 

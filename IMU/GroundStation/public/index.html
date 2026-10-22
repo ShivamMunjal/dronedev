@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>IMU Ground Station — MotionFX 6X</title>
+<style>
+  :root{
+    --bg:#0a0f14; --panel:#111a22; --panel2:#0d141b; --border:#1e2b36;
+    --text:#d7e3ec; --dim:#6b8299; --cyan:#22d3ee; --green:#34d399;
+    --amber:#fbbf24; --red:#f87171; --blue:#60a5fa; --violet:#a78bfa;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -10%,#0f1c26,#070b0f 70%);
+       color:var(--text);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+       min-height:100vh}
+  header{display:flex;align-items:center;gap:18px;padding:14px 22px;
+         border-bottom:1px solid var(--border);background:#0b1218}
+  h1{font-size:16px;margin:0;letter-spacing:1px;color:var(--cyan)}
+  h1 span{color:var(--dim);font-weight:400;font-size:11px;letter-spacing:1px}
+  .spacer{flex:1}
+  .dot{display:inline-flex;align-items:center;gap:6px;font-size:11px;color:var(--dim);
+       letter-spacing:1px;text-transform:uppercase}
+  .dot i{width:9px;height:9px;border-radius:50%;background:#334}
+  .dot.on i{background:var(--green);box-shadow:0 0 8px var(--green)}
+  .dot.err i{background:var(--red);box-shadow:0 0 8px var(--red)}
+  .rate{font-size:11px;color:var(--dim);letter-spacing:1px}
+  .rate b{color:var(--cyan)}
+
+  main{display:grid;grid-template-columns:minmax(340px,1.05fr) minmax(320px,0.95fr);
+       gap:16px;padding:16px 22px;max-width:1280px;margin:0 auto}
+  @media(max-width:900px){main{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:14px}
+  .card h2{font-size:11px;letter-spacing:1.5px;color:var(--dim);margin:0 0 10px}
+
+  /* ── scene ─────────────────────────────────────────── */
+  #viewWrap{position:relative;width:100%;aspect-ratio:1/1;max-height:62vh;
+            border-radius:12px;overflow:hidden;
+            background:radial-gradient(circle at 50% 42%,#12212c,#0a1015 72%)}
+  .scene{position:absolute;inset:0;perspective:1200px;perspective-origin:50% 45%}
+  .craft{position:absolute;left:50%;top:50%;will-change:transform;
+         transform-origin:center center}
+  #craftImg{width:66%;margin-left:-33%;margin-top:-18%;
+            filter:drop-shadow(0 26px 30px rgba(0,0,0,.55))}
+  #hexSvg{width:52%;height:52%;margin-left:-26%;margin-top:-26%;display:none;
+          filter:drop-shadow(0 26px 30px rgba(0,0,0,.55))}
+
+  /* soft ground reference ring + gravity arrow (screen-fixed) */
+  .ring{position:absolute;left:50%;top:50%;width:74%;height:74%;
+        margin:-37% 0 0 -37%;border:1px dashed #1b2b37;border-radius:50%}
+  .ground{position:absolute;left:50%;top:50%;width:82%;height:22%;
+          margin:22% 0 0 -41%;border-radius:50%;
+          background:radial-gradient(ellipse,rgba(34,211,238,.10),transparent 70%)}
+
+  .legend{position:absolute;left:12px;bottom:10px;font-size:10px;color:var(--dim);
+          letter-spacing:1px;line-height:1.7}
+  .legend b{color:var(--text)}
+  .badgeFR{position:absolute;right:12px;top:10px;font-size:10px;letter-spacing:1px;
+           color:var(--dim);border:1px solid var(--border);border-radius:6px;padding:3px 8px}
+  .toggle{position:absolute;right:12px;bottom:12px;display:flex;gap:6px}
+  .toggle button{font-size:10px;padding:6px 10px;border-radius:7px;letter-spacing:1px}
+  .toggle .on{background:#0b2b22;border-color:var(--green);color:var(--green)}
+
+  /* ── readouts ──────────────────────────────────────── */
+  .readouts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .ro{background:var(--panel2);border:1px solid var(--border);border-radius:10px;
+      padding:10px;text-align:center}
+  .ro .lab{font-size:10px;letter-spacing:1.5px;color:var(--dim)}
+  .ro .val{font-size:30px;font-weight:800;font-variant-numeric:tabular-nums;
+           line-height:1.15;margin-top:4px}
+  .ro .sub{font-size:10px;color:var(--dim);letter-spacing:.5px;margin-top:2px}
+  .ro.roll .val{color:var(--cyan)} .ro.pitch .val{color:var(--green)} .ro.yaw .val{color:var(--amber)}
+  .compass{display:grid;place-items:center;padding:6px 0}
+  svg{display:block}
+
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+  button{font-family:inherit;font-size:12px;font-weight:700;letter-spacing:1px;
+         padding:11px 10px;border-radius:9px;border:2px solid;background:transparent;
+         cursor:pointer;transition:all .15s;color:var(--text)}
+  button:active{transform:scale(.97)}
+  .b-cal{color:var(--green);border-color:var(--green)}
+  .b-cal:hover{background:#052e21}
+  .b-zero{color:var(--amber);border-color:var(--amber)}
+  .b-zero:hover{background:#3a2a05}
+  .b-str{color:var(--cyan);border-color:var(--cyan)}
+  .b-str:hover{background:#062a33}
+  .b-stop{color:var(--red);border-color:var(--red)}
+  .b-stop:hover{background:#3a0d0d}
+
+  .kv{display:flex;justify-content:space-between;font-size:11px;color:var(--dim);
+      padding:3px 0;border-bottom:1px dashed #16222c}
+  .kv b{color:var(--text);font-weight:600}
+  .note{font-size:10px;color:var(--dim);line-height:1.5;margin-top:8px}
+  .note b{color:var(--amber)}
+  #log{height:118px;overflow:auto;background:#070d12;border:1px solid var(--border);
+       border-radius:9px;padding:8px;font-size:10.5px;color:#7fa6bd;line-height:1.55;white-space:pre-wrap}
+  #log .fx{color:var(--violet)}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%) translateY(20px);
+         background:var(--green);color:#052c1e;font-weight:800;font-size:13px;letter-spacing:1px;
+         padding:10px 20px;border-radius:10px;opacity:0;transition:all .25s;pointer-events:none}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+</style>
+</head>
+<body>
+<header>
+  <h1>IMU GROUND STATION <span>ISM330IS · MotionFX 6X</span></h1>
+  <div class="spacer"></div>
+  <span class="dot" id="wsDot"><i></i> WS</span>
+  <span class="dot" id="serDot"><i></i> SERIAL</span>
+  <span class="rate">RATE <b id="rate">–</b> Hz</span>
+</header>
+
+<main>
+  <section class="card">
+    <h2>CRAFT ORIENTATION — relative to calibrated zero</h2>
+    <div id="viewWrap">
+      <div class="ground"></div>
+      <div class="ring"></div>
+      <div class="scene">
+        <img id="craftImg" class="craft" src="craft.png" alt="craft">
+        <!-- Hexacopter top-down, motor angles 30/90/150/210/270/330 (firmware default) -->
+        <svg id="hexSvg" class="craft" viewBox="-120 -120 240 240" aria-label="hexacopter">
+          <g id="hexBody">
+            <!-- arms + motors -->
+            <g stroke="#1f3d4a" stroke-width="9" stroke-linecap="round">
+              <line x1="0" y1="0" x2="47.5" y2="-82.3"/>
+              <line x1="0" y1="0" x2="95" y2="0"/>
+              <line x1="0" y1="0" x2="47.5" y2="82.3"/>
+              <line x1="0" y1="0" x2="-47.5" y2="82.3"/>
+              <line x1="0" y1="0" x2="-95" y2="0"/>
+              <line x1="0" y1="0" x2="-47.5" y2="-82.3"/>
+            </g>
+            <!-- propellers -->
+            <g fill="none" stroke="rgba(34,211,238,.28)" stroke-width="6">
+              <circle cx="47.5" cy="-82.3" r="30"/><circle cx="95" cy="0" r="30"/>
+              <circle cx="47.5" cy="82.3" r="30"/><circle cx="-47.5" cy="82.3" r="30"/>
+              <circle cx="-95" cy="0" r="30"/><circle cx="-47.5" cy="-82.3" r="30"/>
+            </g>
+            <!-- motors -->
+            <g fill="#0e1c24" stroke="#2a4553" stroke-width="2">
+              <circle cx="47.5" cy="-82.3" r="14"/><circle cx="95" cy="0" r="14"/>
+              <circle cx="47.5" cy="82.3" r="14"/><circle cx="-47.5" cy="82.3" r="14"/>
+              <circle cx="-95" cy="0" r="14"/><circle cx="-47.5" cy="-82.3" r="14"/>
+            </g>
+            <!-- centre body -->
+            <polygon points="0,-46 40,-23 40,23 0,46 -40,23 -40,-23"
+                     fill="#12303c" stroke="#2a4553" stroke-width="2"/>
+            <!-- nose marker (+X = up on screen) -->
+            <polygon points="0,-66 12,-46 -12,-46" fill="#f87171"/>
+            <circle cx="0" cy="0" r="6" fill="#22d3ee"/>
+          </g>
+        </svg>
+      </div>
+      <div class="badgeFR" id="fusionBadge">fusion: waiting</div>
+      <div class="legend">
+        <b style="color:#f87171">▲</b> nose (+X) &nbsp;
+        <b style="color:#34d399">Y</b> right &nbsp;
+        <b style="color:#60a5fa">Z</b> up<br>
+        gravity is down · yaw spins in-plane
+      </div>
+      <div class="toggle">
+        <button id="tgImg" class="on">📷 IMAGE</button>
+        <button id="tgHex">🛸 HEXA</button>
+      </div>
+    </div>
+  </section>
+
+  <section style="display:flex;flex-direction:column;gap:16px">
+    <div class="card">
+      <h2>MOVEMENT (Δ from calibration)</h2>
+      <div class="readouts">
+        <div class="ro roll"><div class="lab">ROLL</div><div class="val" id="rRoll">0.0°</div><div class="sub" id="rRollAbs">abs 0.0°</div></div>
+        <div class="ro pitch"><div class="lab">PITCH</div><div class="val" id="rPitch">0.0°</div><div class="sub" id="rPitchAbs">abs 0.0°</div></div>
+        <div class="ro yaw"><div class="lab">YAW</div><div class="val" id="rYaw">0.0°</div><div class="sub" id="rYawAbs">abs 0.0°</div></div>
+      </div>
+      <div class="compass">
+        <svg width="132" height="132" viewBox="0 0 132 132">
+          <circle cx="66" cy="66" r="58" fill="none" stroke="#1e2b36" stroke-width="2"/>
+          <circle cx="66" cy="66" r="47" fill="none" stroke="#16222c" stroke-width="1"/>
+          <g stroke="#334" stroke-width="2">
+            <line x1="66" y1="8" x2="66" y2="16"/><line x1="66" y1="116" x2="66" y2="124"/>
+            <line x1="8" y1="66" x2="16" y2="66"/><line x1="116" y1="66" x2="124" y2="66"/>
+          </g>
+          <text x="66" y="24" fill="#6b8299" font-size="10" text-anchor="middle" font-family="monospace">0°</text>
+          <text x="66" y="118" fill="#6b8299" font-size="10" text-anchor="middle" font-family="monospace">180°</text>
+          <g id="needle" transform="rotate(0 66 66)">
+            <line x1="66" y1="66" x2="66" y2="22" stroke="#fbbf24" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="66" cy="66" r="5" fill="#fbbf24"/>
+          </g>
+        </svg>
+      </div>
+      <div class="btns">
+        <button class="b-cal" id="btnCal">⊕ CALIBRATE ZERO</button>
+        <button class="b-zero" id="btnZero">◌ ZERO GYRO (z)</button>
+        <button class="b-str" id="btnStart">▶ START FUSION (a)</button>
+        <button class="b-stop" id="btnStop">■ STOP (x)</button>
+      </div>
+      <div class="note">Calibrate averages the last ~0.4 s and makes that pose <b>0°</b>, so moving the sensor 36° shows 36°. Hold still for “Zero gyro”. Yaw has no magnetometer → it drifts slowly; roll/pitch are gravity-referenced.</div>
+    </div>
+
+    <div class="card">
+      <h2>ABSOLUTE / DIAGNOSTICS</h2>
+      <div class="kv"><span>Roll</span><b id="aRoll">–</b></div>
+      <div class="kv"><span>Pitch</span><b id="aPitch">–</b></div>
+      <div class="kv"><span>Yaw</span><b id="aYaw">–</b></div>
+      <div class="kv"><span>Gyro bias (dps)</span><b id="gbias">–</b></div>
+      <div class="kv"><span>Fusion frames</span><b id="fcount">0</b></div>
+      <div class="kv"><span>Port</span><b id="port">–</b></div>
+      <div id="log"></div>
+    </div>
+  </section>
+</main>
+
+<div class="toast" id="toast">CALIBRATED</div>
+
+<script>
+/* ── state ─────────────────────────────────────────────────────────── */
+const S = { imu:null, ref:{roll:0,pitch:0,yaw:0}, haveRef:false,
+            recent:[], rate:0, lastT:0, fusion:false, frames:0, show:'img' };
+
+const $ = id => document.getElementById(id);
+const D2R = Math.PI/180;
+const wrap180 = d => ((d + 180) % 360 + 360) % 360 - 180;
+
+/* ── websocket ─────────────────────────────────────────────────────── */
+let ws;
+function setDot(el, on, err){ el.classList.toggle('on', on && !err); el.classList.toggle('err', !!err); }
+function log(t, cls){
+  const d=document.createElement('div'); if(cls)d.className=cls; d.textContent=t;
+  const b=$('log'); b.appendChild(d); b.scrollTop=b.scrollHeight;
+  while(b.childElementCount>120) b.removeChild(b.firstChild);
+}
+function connect(){
+  ws = new WebSocket(`ws://${location.host}`);
+  ws.onopen = ()=> setDot($('wsDot'), true, false);
+  ws.onclose = ()=>{ setDot($('wsDot'), false, false); setTimeout(connect, 1500); };
+  ws.onerror = ()=> setDot($('wsDot'), false, true);
+  ws.onmessage = ev => {
+    let m; try{ m = JSON.parse(ev.data); }catch(e){ return; }
+    if(m.type==='serial'){
+      const ok = m.status==='connected';
+      setDot($('serDot'), ok, m.status==='error');
+      if(m.port) $('port').textContent = m.port;
+      log(`serial: ${m.status}${m.port?' '+m.port:''}`);
+    } else if(m.type==='e'){
+      S.imu = m; S.fusion = true; S.frames++;
+      if(S.lastT && m.t>S.lastT){
+        const dt=(m.t-S.lastT)/1000;
+        if(dt>0 && dt<0.5){ S.rate = S.rate? S.rate*0.9 + (1/dt)*0.1 : 1/dt; }
+      }
+      S.lastT = m.t;
+      S.recent.push({roll:m.roll,pitch:m.pitch,yaw:m.yaw});
+      if(S.recent.length>40) S.recent.shift();
+      /* Auto-zero once we have ~0.2 s of data so the first noisy sample is not
+       * the reference. Manual CALIBRATE re-zeroes. */
+      if(!S.haveRef && S.recent.length>=20) setRefFromRecent(false);
+    } else if(m.type==='log'){
+      if(/^#/.test(m.data)) log(m.data, /fx/.test(m.data)?'fx':'');
+    }
+  };
+}
+connect();
+function send(c){ if(ws && ws.readyState===1) ws.send(c); }
+
+/* ── calibration ───────────────────────────────────────────────────── */
+function circMean(a){ let s=0,c=0; for(const x of a){ s+=Math.sin(x*D2R); c+=Math.cos(x*D2R); } return Math.atan2(s,c)/D2R; }
+function setRefFromRecent(toast){
+  if(!S.recent.length) return;
+  const r=S.recent.slice(-40);
+  S.ref = {
+    roll : r.reduce((a,v)=>a+v.roll,0)/r.length,
+    pitch: r.reduce((a,v)=>a+v.pitch,0)/r.length,
+    yaw  : circMean(r.map(v=>v.yaw))
+  };
+  S.haveRef = true;
+  if(toast){ $('toast').classList.add('show'); setTimeout(()=>$('toast').classList.remove('show'),900); }
+}
+$('btnCal').onclick = ()=> setRefFromRecent(true);
+$('btnZero').onclick = ()=>{ send('z'); log('# sent z — hold still ~2s'); };
+$('btnStart').onclick = ()=>{ S.fusion=false; send('a'); log('# sent a — starting fused stream'); };
+$('btnStop').onclick = ()=>{ send('x'); log('# sent x'); };
+
+/* ── image / hexacopter toggle ─────────────────────────────────────── */
+function show(which){
+  S.show = which;
+  $('craftImg').style.display = which==='img' ? 'block':'none';
+  $('hexSvg').style.display   = which==='hex' ? 'block':'none';
+  $('tgImg').classList.toggle('on', which==='img');
+  $('tgHex').classList.toggle('on', which==='hex');
+}
+$('tgImg').onclick = ()=> show('img');
+$('tgHex').onclick = ()=> show('hex');
+$('craftImg').onerror = ()=> show('hex');   // image missing -> hexacopter
+
+/* ── orientation -> CSS 3D transform ────────────────────────────────
+ * MotionFX conventions (see src/fusion.c):
+ *   roll  + = right wing down     pitch + = nose up     yaw + = turn right
+ * CSS 3D: X right, Y down, Z toward viewer.
+ *   rotateZ(yaw)  : positive = clockwise -> nose turns right   (+yaw)  ✓
+ *   rotateX(-pitch): nose up = top edge toward viewer          (+pitch)✓
+ *   rotateY(roll) : right edge tips away/down                 (+roll) ✓
+ * Flip the SIGNs below if a tilt looks inverted on your build.           */
+const SIGN = { yaw:+1, pitch:-1, roll:+1 };
+const elImg = $('craftImg'), elHex = $('hexSvg');
+function applyView(){
+  if(!S.imu) return;
+  let roll=S.imu.roll, pitch=S.imu.pitch, yaw=S.imu.yaw;
+  if(S.haveRef){
+    roll  = wrap180(roll  - S.ref.roll);
+    pitch = wrap180(pitch - S.ref.pitch);
+    yaw   = wrap180(yaw   - S.ref.yaw);
+  }
+  const t = `perspective(1200px) rotateZ(${SIGN.yaw*yaw}deg) ` +
+            `rotateX(${SIGN.pitch*pitch}deg) rotateY(${SIGN.roll*roll}deg)`;
+  elImg.style.transform = t;
+  elHex.style.transform = t;
+}
+
+/* ── UI update ─────────────────────────────────────────────────────── */
+function ui(){
+  const m=S.imu;
+  if(m){
+    let rr=m.roll, rp=m.pitch, ry=m.yaw;
+    if(S.haveRef){ rr=wrap180(m.roll-S.ref.roll); rp=wrap180(m.pitch-S.ref.pitch); ry=wrap180(m.yaw-S.ref.yaw); }
+    $('rRoll').textContent  = (rr>=0?'+':'')+rr.toFixed(1)+'°';
+    $('rPitch').textContent = (rp>=0?'+':'')+rp.toFixed(1)+'°';
+    $('rYaw').textContent   = (ry>=0?'+':'')+ry.toFixed(1)+'°';
+    $('rRollAbs').textContent  = 'abs '+m.roll.toFixed(1)+'°';
+    $('rPitchAbs').textContent = 'abs '+m.pitch.toFixed(1)+'°';
+    $('rYawAbs').textContent   = 'abs '+wrap180(m.yaw).toFixed(1)+'°';
+    $('aRoll').textContent  = m.roll.toFixed(2)+'°';
+    $('aPitch').textContent = m.pitch.toFixed(2)+'°';
+    $('aYaw').textContent   = m.yaw.toFixed(2)+'°';
+    $('gbias').textContent  = m.gb.map(x=>x.toFixed(0)).join(', ');
+    $('fcount').textContent = S.frames;
+    $('rate').textContent   = S.rate? S.rate.toFixed(1):'–';
+    $('fusionBadge').textContent = S.fusion? 'fusion: 6X live':'fusion: waiting for E,';
+    $('needle').setAttribute('transform', `rotate(${ry} 66 66)`);
+    applyView();
+  }
+  requestAnimationFrame(ui);
+}
+requestAnimationFrame(ui);
+</script>
+</body>
+</html>

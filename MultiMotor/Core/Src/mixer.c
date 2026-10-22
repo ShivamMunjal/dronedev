@@ -105,13 +105,19 @@ void mixer_load_preset(mixer_preset_t preset)
         break;
 
     case MIXER_PRESET_HEXA_X:
-    default:
+    default: {
+        /* Default layout (motor order M1..M6). Angles are the hexa-X set but
+         * the frames are wired in a different rotational order, so this is an
+         * explicit table rather than a 30 + i*60 formula. */
+        static const int16_t hexa_x_angle[MIXER_MOTORS] = { 30, 90, 210, 270, 150, 330 };
+        static const int8_t  hexa_x_dir  [MIXER_MOTORS] = { -1,  1,   1,  -1,  -1,   1 };
         for (int i = 0; i < MIXER_MOTORS; i++) {
-            mixer_motors[i].angle_deg = (int16_t)(30 + i * 60);
-            mixer_motors[i].yaw_dir   = (i & 1) ? -1 : 1;
+            mixer_motors[i].angle_deg = hexa_x_angle[i];
+            mixer_motors[i].yaw_dir   = hexa_x_dir[i];
             mixer_motors[i].enabled   = 1;
         }
         break;
+    }
     }
 
     for (int i = 0; i < MIXER_MOTORS; i++) {

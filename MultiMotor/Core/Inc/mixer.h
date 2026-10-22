@@ -40,7 +40,7 @@
 
 /* Layout presets */
 typedef enum {
-    MIXER_PRESET_HEXA_X = 1,   /* 30, 90, 150, 210, 270, 330  (no motor dead ahead) */
+    MIXER_PRESET_HEXA_X = 1,   /* default: M1..M6 = 30,90,210,270,150,330 with dirs -1,+1,+1,-1,-1,+1 */
     MIXER_PRESET_HEXA_P = 2,   /*  0, 60, 120, 180, 240, 300  (motor dead ahead)   */
     MIXER_PRESET_QUAD_X = 3    /* 45,135, 225, 315 on motors 1..4, 5&6 disabled    */
 } mixer_preset_t;

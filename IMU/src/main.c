@@ -665,6 +665,65 @@ static void process_line(char *line)
     }
 }
 
+/* ── MotionFX bring-up probe ───────────────────────────────────────────── */
+
+/* Walk MotionFX's initialisation one call at a time, printing BEFORE each call,
+ * once per second until the sequence completes.
+ *
+ * Why from the main loop and not at boot: if a library call traps, a boot-time
+ * init means the console never comes up and the only symptom is silence. Run
+ * from the loop, we always have the raw stream and the last printed line tells
+ * us exactly which call never returned. Prints go out before the call, so the
+ * message survives even if the call never returns. */
+static void __attribute__((unused)) fusion_probe_task(void)
+{
+    static uint32_t next_ms = 0u;
+    static int      done = 0;
+    static int      attempts = 0;
+
+    if (done || attempts >= 3) return;
+
+    const uint32_t now = system_millis();
+    if (next_ms && (int32_t)(now - next_ms) < 0) return;
+    next_ms = now + 1000u;
+    attempts++;
+
+    uart_puts("# fx["); uart_print_uint((uint32_t)attempts); uart_puts("]: hw prepare (CRC clock)...\n");
+    fusion_hw_prepare();
+
+    uart_puts("# fx: initialize...\n");
+    MotionFX_CM0P_initialize(MFX_CM0P_MCU_STM32);
+    uart_puts("# fx: initialize OK\n");
+
+    uart_puts("# fx: setOrientation...\n");
+    MotionFX_CM0P_setOrientation("ENU", "ENU", "ENU");
+    uart_puts("# fx: setOrientation OK\n");
+
+    uart_puts("# fx: enable_6X...\n");
+    MotionFX_CM0P_enable_6X(MFX_CM0P_ENGINE_ENABLE);
+    uart_puts("# fx: enable_6X OK\n");
+
+    uart_puts("# fx: enable_9X(off)...\n");
+    MotionFX_CM0P_enable_9X(MFX_CM0P_ENGINE_DISABLE);
+    uart_puts("# fx: enable_9X OK\n");
+
+    uart_puts("# fx: enable_euler...\n");
+    MotionFX_CM0P_enable_euler(MFX_CM0P_ENGINE_ENABLE);
+    uart_puts("# fx: enable_euler OK\n");
+
+    uart_puts("# fx: enable_gbias...\n");
+    MotionFX_CM0P_enable_gbias(MFX_CM0P_ENGINE_ENABLE);
+    uart_puts("# fx: enable_gbias OK\n");
+
+    char ver[24];
+    if (MotionFX_CM0P_GetLibVersion(ver) != 0u) {
+        uart_puts("# fx: MotionFX version "); uart_puts(ver); uart_putc('\n');
+    }
+
+    uart_puts("# fx: INIT SEQUENCE COMPLETE - library is usable on this MCU\n");
+    done = 1;
+}
+
 /* ── main ──────────────────────────────────────────────────────────────── */
 
 int main(void)
@@ -694,61 +753,12 @@ int main(void)
     bus_scan();
     imu_bring_up();
 
-    /* MotionFX self-test at boot. Doing this here rather than behind a command
-     * keeps the UART out of the equation: if the fusion path is broken it shows
-     * up in the banner, instead of looking like a dead command or a silent
-     * filter. It also proves the library runs on this M0+ before anything
-     * depends on it. */
-    if (s_imu_ok) {
-        char ver[24];
-        /* Walk MotionFX's init one call at a time and say so after each. If it
-         * stops mid-sequence the last line printed names the offending call,
-         * which is far cheaper than bisecting whole builds. */
-        uart_puts("# fx: hw prepare (CRC clock)...\n");
-        fusion_hw_prepare();
-        uart_puts("# fx: initialize...\n");
-        MotionFX_CM0P_initialize(MFX_CM0P_MCU_STM32);
-        uart_puts("# fx: initialize done\n");
-
-        uart_puts("# fx: setOrientation...\n");
-        MotionFX_CM0P_setOrientation("ENU", "ENU", "ENU");
-        uart_puts("# fx: setOrientation done\n");
-
-        uart_puts("# fx: enable_6X...\n");
-        MotionFX_CM0P_enable_6X(MFX_CM0P_ENGINE_ENABLE);
-        uart_puts("# fx: enable_6X done\n");
-
-        uart_puts("# fx: enable_9X(disable)...\n");
-        MotionFX_CM0P_enable_9X(MFX_CM0P_ENGINE_DISABLE);
-        uart_puts("# fx: enable_9X done\n");
-
-        uart_puts("# fx: enable_euler...\n");
-        MotionFX_CM0P_enable_euler(MFX_CM0P_ENGINE_ENABLE);
-        uart_puts("# fx: enable_euler done\n");
-
-        uart_puts("# fx: enable_gbias...\n");
-        MotionFX_CM0P_enable_gbias(MFX_CM0P_ENGINE_ENABLE);
-        uart_puts("# fx: enable_gbias done\n");
-
-        if (MotionFX_CM0P_GetLibVersion(ver) != 0u) {
-            uart_puts("# MotionFX version: "); uart_puts(ver); uart_putc('\n');
-        }
-
-        uart_puts("# fx: first update...\n");
-        ism_sample_t st;
-        if (ism_read_sample(&st) == 0) {
-            fusion_euler_t se;
-            if (fusion_step(&st, 0.01f, &se) == 0) {
-                uart_puts("# fusion selftest ok: roll=");
-                uart_print_int(se.roll_mdeg);
-                uart_puts(" pitch="); uart_print_int(se.pitch_mdeg);
-                uart_puts(" yaw=");   uart_print_int(se.yaw_mdeg);
-                uart_putc('\n');
-            } else {
-                uart_puts("# fusion selftest FAILED in fusion_step\n");
-            }
-        }
-    }
+    /* NOTE: MotionFX is intentionally NOT initialised here. Doing it at boot
+     * means a hang in the library stops the firmware before the console is up,
+     * so all we see is silence and we cannot tell which call trapped. Instead
+     * fusion_probe_task() walks the init sequence from the main loop, one call
+     * at a time, printing before each - so the last line seen names the
+     * offending call even if the CPU never returns from it. */
 
     print_csv_header();
 
@@ -771,6 +781,10 @@ int main(void)
             ch = uart_getc();
         }
 
+        /* MotionFX is initialised lazily by the first 'a' (attitude stream),
+         * which is proven safe on this MCU. The old step-by-step boot probe is
+         * retired: it initialised the library a second time, and 'a' then
+         * re-initialised it. */
         if (s_stream < 0) { delay_ms(5); continue; }
 
         /* paced stream */

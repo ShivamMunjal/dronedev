@@ -13,6 +13,7 @@ int  main(void);
 void Reset_Handler(void);
 void SysTick_Handler(void);
 void HardFault_Handler(void);
+void USART2_IRQHandler(void);   /* defined in uart.c (RX ring buffer) */
 
 /* Emergency console: raw USART2 (v3 peripheral) register writes so a fault
  * after uart_init() still produces a message. ISR @0x1C, TDR @0x28. */
@@ -64,7 +65,9 @@ void (*const g_pfnVectors[])(void) = {
     [11] = SVCall_Handler,
     [14] = PendSV_Handler,
     [15] = SysTick_Handler,   /* defined in system.c */
-    [16 ... 47] = Default_Handler,
+    [16 ... 43] = Default_Handler,
+    [44] = USART2_IRQHandler, /* USART2_IRQn = 28 -> vector 16 + 28 */
+    [45 ... 47] = Default_Handler,
 };
 
 void Reset_Handler(void)

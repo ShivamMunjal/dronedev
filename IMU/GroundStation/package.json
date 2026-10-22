@@ -1,0 +1,14 @@
+{
+  "name": "imu-ground-station",
+  "version": "1.0.0",
+  "description": "3D attitude dashboard for the ISM330IS + MotionFX IMU on NUCLEO-C092RC",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "serialport": "^12.0.0",
+    "ws": "^8.18.0"
+  }
+}

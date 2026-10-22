@@ -170,10 +170,28 @@ Gyro and accel outputs are **contiguous**, so a whole inertial sample is a singl
 being torn by concurrent output refresh — both matter for a control loop that
 polls this from a timer.
 
+## 3D dashboard (fusion + calibrate-to-zero)
+
+`IMU/GroundStation` is a web dashboard that shows the board's attitude as a live
+3D model and lets you **calibrate the current pose as 0°**, then read movement
+relative to it (move 36° → see 36°). It drives the fused `E,` stream from
+MotionFX 6X.
+
+```bash
+cd IMU/GroundStation && node server.js      # -> http://localhost:4100
+```
+
+See `GroundStation/README.md`. Yaw is gyro-only (no magnetometer) and drifts;
+roll/pitch are gravity-referenced.
+
 ## Status
 
-- Firmware **builds clean** (`-Wall -Wextra`), 9.1 KB flash / 2.6 KB RAM.
-- **Not yet hardware-verified**: the timing of flashing it depends on the
-  NUCLEO-C092RC being plugged in with the adapter wired per the table above.
-  The first flash should be treated as a wiring test — `?` and `i` will report
-  exactly what answered on the bus.
+- Firmware **builds clean** (`-Wall -Wextra`), ~33 KB flash / 12 KB RAM with
+  MotionFX linked.
+- **Hardware-verified** on the NUCLEO-C092RC + STEVAL-MKI230KA:
+  - sensor detected on **PB10/PB11 (I2C2, morpho)** at `0x6A`, `WHO_AM_I=0x22`;
+  - raw stream 100 Hz, `|acc|` ≈ 1.01 g at rest, 1 mg accel noise, 0 I²C errors;
+  - **MotionFX v2.6.1 initialises and runs** (6X euler), fused stream ~100 Hz;
+  - UART RX is now **interrupt-driven with a ring buffer** (`src/uart.c`), so
+    `a`/`r`/`s`/`x`/`z`/`?` land reliably even while the stream blocks the loop.
+    Previously the polling driver dropped most commands.

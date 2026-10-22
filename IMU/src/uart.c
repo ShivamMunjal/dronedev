@@ -13,6 +13,16 @@
 #include "board.h"
 #include "uart.h"
 
+/* ── RX ring buffer, filled by the USART2 ISR ───────────────────────────
+ * Polling alone loses bytes: the main loop blocks ~5 ms of every 10 ms doing
+ * the I2C burst and printing the CSV line, and at 115200 a byte arrives every
+ * 87 us, so a command sent during that window overran the 1-byte RX register.
+ * Single producer (ISR) / single consumer (main) with uint16 indices. */
+#define RX_RING 256u
+static volatile uint8_t  rx_buf[RX_RING];
+static volatile uint16_t rx_head;
+static volatile uint16_t rx_tail;
+
 void uart_init(void)
 {
     /* --- clocks --- */
@@ -35,7 +45,29 @@ void uart_init(void)
     USART2->CR3 = 0u;                                  /* no flow control */
     USART2->PRESC = 0u;                                /* no prescaler division */
     USART2->BRR = (PCLK1_HZ + (CONSOLE_BAUD / 2u)) / CONSOLE_BAUD;
-    USART2->CR1 = USART_CR1_UE | USART_CR1_TE | USART_CR1_RE;
+    /* Interrupt-driven RX so command bytes survive the blocking CSV emit. */
+    rx_head = rx_tail = 0u;
+    USART2->ICR = 0xFFFFFFFFu;                 /* clear any stale flags */
+    NVIC_ClearPendingIRQ(USART2_IRQn);
+    USART2->CR1 = USART_CR1_UE | USART_CR1_TE | USART_CR1_RE | USART_CR1_RXNEIE_RXFNEIE;
+    NVIC_EnableIRQ(USART2_IRQn);
+}
+
+void USART2_IRQHandler(void)
+{
+    /* Drain every received byte into the ring. Reading RDR clears RXNE and any
+     * ORE/FE/NE/PE that arrived with it, so one loop services both. */
+    while (USART2->ISR & USART_ISR_RXNE_RXFNE) {
+        const uint8_t b = (uint8_t)(USART2->RDR & 0xFFu);
+        const uint16_t nh = (uint16_t)((rx_head + 1u) % RX_RING);
+        if (nh != rx_tail) {          /* drop on overflow rather than corrupt */
+            rx_buf[rx_head] = b;
+            rx_head = nh;
+        }
+    }
+    if (USART2->ISR & (USART_ISR_ORE | USART_ISR_FE | USART_ISR_NE | USART_ISR_PE)) {
+        (void)USART2->RDR;            /* error pending with no byte: clear it */
+    }
 }
 
 void uart_putc(char c)
@@ -57,20 +89,12 @@ void uart_puts(const char *s)
 
 int uart_getc(void)
 {
-    const uint32_t isr = USART2->ISR;
-    const uint32_t err = isr & (USART_ISR_ORE | USART_ISR_FE | USART_ISR_NE | USART_ISR_PE);
-
-    /* Prefer the byte whenever one is present, even if it arrived with an error
-     * flag set. Returning early on the error (clearing it and dropping the byte)
-     * silently ate typed characters, which made commands work only sometimes -
-     * the overrun is routine because the 100 Hz stream keeps the CPU busy. */
-    if (isr & USART_ISR_RXNE_RXFNE) {
-        return (int)(USART2->RDR & 0xFFu);   /* also clears ORE/FE/NE/PE */
+    if (rx_tail == rx_head) {
+        return -1;                            /* nothing buffered */
     }
-    if (err) {
-        (void)USART2->RDR;                   /* error with no byte: clear it */
-    }
-    return -1;
+    const uint8_t b = rx_buf[rx_tail];
+    rx_tail = (uint16_t)((rx_tail + 1u) % RX_RING);
+    return (int)b;
 }
 
 void uart_print_uint(uint32_t v)
