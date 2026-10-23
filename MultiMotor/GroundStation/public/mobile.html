@@ -137,7 +137,7 @@
   <main>
     <div class="joybox">
       <div class="pad" id="padAngle"><div class="knob"></div></div>
-      <div class="jl">ANGLE · roll/pitch</div>
+      <div class="jl" id="padLabel">ANGLE · roll/pitch</div>
     </div>
 
     <div class="center">
@@ -200,7 +200,7 @@ const D2R=Math.PI/180, wrap180=d=>((d+180)%360+360)%360-180;
 const LOCK_THR=1350, LOCK_ATT=70;   /* LOCK: throttle<=1350, attitude authority ~7deg (10us/deg) */
 
 const S={imu:null,ref:{roll:0,pitch:0,yaw:0},haveRef:false,recent:[],state:0,
-  mirror:false,lock:false,
+  mirror:(localStorage.getItem('dgs_mirror')!=='0'),lock:false,
   mix:{on:true,thr:1000,roll:0,pitch:0,yaw:0},timer:null,lastT:0,rate:0,
   batt:{mv:0,ma:0,mw:0,uah:0,uwh:0,mc:null,seen:false},
   geo:[{a:30,d:-1},{a:90,d:1},{a:210,d:1},{a:270,d:-1},{a:150,d:-1},{a:330,d:1}],
@@ -251,8 +251,9 @@ makeWheel($('wheelYaw'),v=>{const s=S.mirror?-1:1;S.mix.yaw=Math.round(s*v*300);
 $('thr').addEventListener('input',e=>{S.mix.thr=+e.target.value;$('thrV').textContent=e.target.value;if(S.state===1)sendMix();});
 
 /* mirror / lock */
-function setMirror(on){S.mirror=on;const b=$('mirrorBtn');b.classList.toggle('on',on);b.textContent=on?'⇄ MIRROR ON':'⇄ MIRROR';}
+function setMirror(on){S.mirror=on;localStorage.setItem('dgs_mirror',on?'1':'0');const b=$('mirrorBtn');b.classList.toggle('on',on);b.textContent=on?'⇄ MIRROR ON':'⇄ MIRROR';const l=$('padLabel');if(l)l.textContent=on?'ANGLE · roll/pitch ⇄ MIRRORED':'ANGLE · roll/pitch';}
 $('mirrorBtn').onclick=()=>setMirror(!S.mirror);
+setMirror(S.mirror);   /* apply/reflect persisted default (ON by default) */
 function setLock(on){S.lock=on;const b=$('lockBtn');b.classList.toggle('on',on);b.textContent=on?'🔒 LOCK ON':'LOCK';
   const t=$('thr');t.max=on?LOCK_THR:2000;if(+t.value>t.max){t.value=t.max;S.mix.thr=+t.value;$('thrV').textContent=t.value;}
   if(S.state===1)sendMix();}

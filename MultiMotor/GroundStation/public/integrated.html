@@ -445,12 +445,13 @@ function handleTelem(line){
 }
 
 /* joystick mode + mini craft */
-let joyMode=false, mirror=false, lock=false;
+let joyMode=false, mirror=(localStorage.getItem('dgs_mirror')!=='0'), lock=false;
 function setMode(joy){joyMode=joy;$('axesSliders').style.display=joy?'none':'grid';$('axesJoystick').style.display=joy?'flex':'none';
   $('modeSliders').classList.toggle('on',!joy);$('modeJoy').classList.toggle('on',joy);}
 $('modeSliders').onclick=()=>setMode(false); $('modeJoy').onclick=()=>setMode(true);
-$('mirrorBtn').onclick=()=>{mirror=!mirror;const b=$('mirrorBtn');b.classList.toggle('on',mirror);b.textContent=mirror?'⇄ MIRROR ON':'⇄ MIRROR';};
+$('mirrorBtn').onclick=()=>{mirror=!mirror;localStorage.setItem('dgs_mirror',mirror?'1':'0');const b=$('mirrorBtn');b.classList.toggle('on',mirror);b.textContent=mirror?'⇄ MIRROR ON':'⇄ MIRROR';};
 $('lockBtn').onclick=()=>{lock=!lock;const b=$('lockBtn');b.classList.toggle('on',lock);b.textContent=lock?'🔒 LOCK ON':'LOCK';if(lock&&S.state===1)sendMix();};
+{const b=$('mirrorBtn');b.classList.toggle('on',mirror);b.textContent=mirror?'⇄ MIRROR ON':'⇄ MIRROR';}   /* reflect persisted default */
 function syncAxesUI(){$('axRoll').value=S.mix.roll;$('axRollV').textContent=S.mix.roll;
   $('axPitch').value=S.mix.pitch;$('axPitchV').textContent=S.mix.pitch;
   $('axYaw').value=S.mix.yaw;$('axYawV').textContent=S.mix.yaw;}
