@@ -8,6 +8,8 @@ STM32C092RCT6 firmware for 6-channel ESC PWM control at 500Hz.
 > one bridge server:
 > - `http://localhost:3000/`      — motors + mixer + PMU
 > - `http://localhost:3000/imu.html` — IMU 3D attitude (calibrate-to-zero)
+> - `http://localhost:3000/integrated.html` — combined: IMU + mixer control + single PMU bar,
+>   with mixer-geometry editor and ARM/DISARM/RESET-KILL/STOP in **both** sections
 >
 > Extra stream/commands added for the IMU (lowercase; uppercase stay motor/mixer):
 >
