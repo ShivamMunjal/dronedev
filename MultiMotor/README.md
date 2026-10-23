@@ -2,6 +2,26 @@
 
 STM32C092RCT6 firmware for 6-channel ESC PWM control at 500Hz.
 
+> **Combined build (current).** This firmware now also drives the **PMU** (I2C1)
+> and the **ISM330IS IMU + ST MotionFX 6X fusion** (I2C2), so motors, battery and
+> attitude all stream from one image and one serial port. Two dashboards share
+> one bridge server:
+> - `http://localhost:3000/`      — motors + mixer + PMU
+> - `http://localhost:3000/imu.html` — IMU 3D attitude (calibrate-to-zero)
+>
+> Extra stream/commands added for the IMU (lowercase; uppercase stay motor/mixer):
+>
+> | Line / cmd | Meaning |
+> |---|---|
+> | `E,<t>,<roll>,<pitch>,<yaw>,<gbx>,<gby>,<gbz>` | MotionFX attitude, mdeg, ~100 Hz |
+> | `IMU,ISM330IS,0x6A` | IMU detected at boot (or `IMU,NONE`) |
+> | `?` | IMU/fusion status |
+> | `a` / `x` | start / stop the `E` stream |
+> | `z` | zero gyro bias (hold still ~1 s) |
+>
+> Build links `../IMU` sources + `MotionFX_CM0P_wc16_ot.a`; stack is 8 KB for
+> MotionFX. Flash as usual (`make flash`, mass-erases).
+
 ## Hardware
 
 | Motor | Pin | Header | Timer | AF |
