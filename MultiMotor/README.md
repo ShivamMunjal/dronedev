@@ -10,6 +10,8 @@ STM32C092RCT6 firmware for 6-channel ESC PWM control at 500Hz.
 > - `http://localhost:3000/imu.html` — IMU 3D attitude (calibrate-to-zero)
 > - `http://localhost:3000/integrated.html` — combined: IMU + mixer control + single PMU bar,
 >   with mixer-geometry editor and ARM/DISARM/RESET-KILL/STOP in **both** sections
+> - `http://localhost:3000/mobile.html` — installable **PWA** for phones (landscape): left 360° angle
+>   joystick, centre 3D drone, right yaw wheel, IMU roll/pitch/yaw line
 >
 > Extra stream/commands added for the IMU (lowercase; uppercase stay motor/mixer):
 >

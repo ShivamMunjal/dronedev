@@ -87,6 +87,23 @@
   .ax .h{display:flex;justify-content:space-between;font-size:10px;letter-spacing:1px;color:var(--dim)}
   .ax .h b{color:var(--text);font-size:13px}
   input[type=range]{width:100%;accent-color:var(--cyan);margin-top:4px}
+  .mode{color:var(--dim);border-color:var(--border);padding:6px 10px} .mode.on{color:var(--cyan);border-color:var(--cyan);background:#062a33}
+  .joywrap{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px}
+  .joybox{flex:1 1 0;display:flex;flex-direction:column;align-items:center;min-width:0}
+  .jl{font-size:9px;letter-spacing:1px;color:var(--dim);margin-top:4px}
+  .pad,.wheel{position:relative;border-radius:50%;touch-action:none;width:min(150px,17vw);aspect-ratio:1;max-width:100%;
+    border:2px solid #1f3d4a;background:radial-gradient(circle at 50% 50%,#0e1a22,#0a1015 70%)}
+  .wheel{box-shadow:inset 0 0 20px rgba(34,211,238,.10)}
+  .wheel .rim{position:absolute;inset:12%;border:1px dashed #1b2b37;border-radius:50%}
+  .wheel .tick{position:absolute;left:50%;top:6%;width:2px;height:8px;background:var(--amber);transform:translateX(-1px)}
+  .knob{position:absolute;left:50%;top:50%;border-radius:50%;will-change:transform}
+  .pad .knob{width:42px;height:42px;margin:-23px 0 0 -23px;border:2px solid var(--cyan);background:#0b2730;box-shadow:0 0 14px rgba(34,211,238,.4)}
+  .wheel .knob{width:30px;height:30px;margin:-17px 0 0 -17px;border:2px solid var(--amber);background:#2a2205;box-shadow:0 0 12px rgba(251,191,36,.45)}
+  .center{flex:0 0 32%;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
+  .craftWrap{position:relative;width:min(160px,20vw);aspect-ratio:1;display:grid;place-items:center;perspective:600px}
+  #mini{width:88%;will-change:transform;transform-origin:center;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
+  #moveArrow{position:absolute;inset:0;margin:auto;width:92%;height:92%;opacity:.2;transform:rotate(0deg);pointer-events:none}
+  .cl{font-size:9px;letter-spacing:1px;color:var(--dim);margin-top:2px}
 
   .motors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
   .mc{background:var(--panel2);border:1px solid var(--border);border-radius:9px;padding:7px;text-align:center}
@@ -212,15 +229,47 @@
       <span class="limit" id="mixLimit">mixer idle</span>
     </div>
 
-    <div class="axes">
-      <div class="ax"><div class="h"><span>THROTTLE</span><b id="axThrV">1000</b></div>
-        <input type="range" id="axThr" min="1000" max="2000" value="1000" step="5" oninput="axChange('thr',this.value)"></div>
+    <div class="ax"><div class="h"><span>THROTTLE</span><b id="axThrV">1000</b></div>
+      <input type="range" id="axThr" min="1000" max="2000" value="1000" step="5" oninput="axChange('thr',this.value)"></div>
+
+    <div class="row" style="margin:8px 0">
+      <button id="modeSliders" class="mode on">🎚 SLIDERS</button>
+      <button id="modeJoy" class="mode">🕹 JOYSTICK</button>
+      <span class="limit" id="joyHint">MIX ON + ARM to apply</span>
+    </div>
+
+    <div id="axesSliders" class="axes">
       <div class="ax"><div class="h"><span>ROLL →</span><b id="axRollV">0</b></div>
         <input type="range" id="axRoll" min="-300" max="300" value="0" step="5" oninput="axChange('roll',this.value)"></div>
       <div class="ax"><div class="h"><span>PITCH ↑</span><b id="axPitchV">0</b></div>
         <input type="range" id="axPitch" min="-300" max="300" value="0" step="5" oninput="axChange('pitch',this.value)"></div>
       <div class="ax"><div class="h"><span>YAW ↻</span><b id="axYawV">0</b></div>
         <input type="range" id="axYaw" min="-300" max="300" value="0" step="5" oninput="axChange('yaw',this.value)"></div>
+    </div>
+
+    <div id="axesJoystick" class="joywrap" style="display:none">
+      <div class="joybox"><div class="pad" id="padAngle"><div class="knob"></div></div><div class="jl">ANGLE · roll/pitch</div></div>
+      <div class="center"><div class="craftWrap">
+        <svg id="mini" viewBox="-120 -120 240 240">
+          <g stroke="#1f3d4a" stroke-width="9" stroke-linecap="round">
+            <line x1="0" y1="0" x2="47.5" y2="-82.3"/><line x1="0" y1="0" x2="95" y2="0"/>
+            <line x1="0" y1="0" x2="47.5" y2="82.3"/><line x1="0" y1="0" x2="-47.5" y2="82.3"/>
+            <line x1="0" y1="0" x2="-95" y2="0"/><line x1="0" y1="0" x2="-47.5" y2="-82.3"/>
+          </g>
+          <g fill="none" stroke="rgba(34,211,238,.28)" stroke-width="6">
+            <circle cx="47.5" cy="-82.3" r="30"/><circle cx="95" cy="0" r="30"/><circle cx="47.5" cy="82.3" r="30"/>
+            <circle cx="-47.5" cy="82.3" r="30"/><circle cx="-95" cy="0" r="30"/><circle cx="-47.5" cy="-82.3" r="30"/>
+          </g>
+          <g fill="#0e1c24" stroke="#2a4553" stroke-width="2">
+            <circle cx="47.5" cy="-82.3" r="14"/><circle cx="95" cy="0" r="14"/><circle cx="47.5" cy="82.3" r="14"/>
+            <circle cx="-47.5" cy="82.3" r="14"/><circle cx="-95" cy="0" r="14"/><circle cx="-47.5" cy="-82.3" r="14"/>
+          </g>
+          <polygon points="0,-46 40,-23 40,23 0,46 -40,23 -40,-23" fill="#12303c" stroke="#2a4553" stroke-width="2"/>
+          <polygon points="0,-66 12,-46 -12,-46" fill="#f87171"/><circle cx="0" cy="0" r="6" fill="#22d3ee"/>
+        </svg>
+        <svg id="moveArrow" viewBox="-50 -50 100 100"><line x1="0" y1="0" x2="36" y2="0" stroke="#fbbf24" stroke-width="3" stroke-linecap="round"/><polygon points="36,-6 48,0 36,6" fill="#fbbf24"/></svg>
+      </div><div class="cl">ATTITUDE</div></div>
+      <div class="joybox"><div class="wheel" id="wheelYaw"><div class="rim"></div><div class="tick"></div><div class="knob"></div></div><div class="jl">YAW · steer</div></div>
     </div>
 
     <div class="row" style="margin-bottom:8px">
@@ -251,6 +300,7 @@
 
 <div class="toast" id="toast">CALIBRATED</div>
 
+<script src="controls.js"></script>
 <script>
 const $=id=>document.getElementById(id);
 const D2R=Math.PI/180, wrap180=d=>((d+180)%360+360)%360-180;
@@ -389,8 +439,25 @@ function handleTelem(line){
   else if(line.startsWith('MK,')||line.startsWith('ME,')||line.startsWith('PE,'))log(line);
 }
 
+/* joystick mode + mini craft */
+let joyMode=false;
+function setMode(joy){joyMode=joy;$('axesSliders').style.display=joy?'none':'grid';$('axesJoystick').style.display=joy?'flex':'none';
+  $('modeSliders').classList.toggle('on',!joy);$('modeJoy').classList.toggle('on',joy);}
+$('modeSliders').onclick=()=>setMode(false); $('modeJoy').onclick=()=>setMode(true);
+function syncAxesUI(){$('axRoll').value=S.mix.roll;$('axRollV').textContent=S.mix.roll;
+  $('axPitch').value=S.mix.pitch;$('axPitchV').textContent=S.mix.pitch;
+  $('axYaw').value=S.mix.yaw;$('axYawV').textContent=S.mix.yaw;}
+try{makePad($('padAngle'),(nx,ny)=>{S.mix.roll=Math.round(nx*300);S.mix.pitch=Math.round(-ny*300);syncAxesUI();});
+    makeWheel($('wheelYaw'),v=>{S.mix.yaw=Math.round(v*300);syncAxesUI();});}catch(e){}
+function updateMini(){if(!S.imu)return;
+  let roll=S.imu.roll,pitch=S.imu.pitch,yaw=S.imu.yaw;
+  if(S.haveRef){roll=wrap180(roll-S.ref.roll);pitch=wrap180(pitch-S.ref.pitch);yaw=wrap180(yaw-S.ref.yaw);}
+  const m=$('mini'); if(m)m.style.transform=`perspective(600px) rotateZ(${yaw}deg) rotateX(${-pitch}deg) rotateY(${roll}deg)`;
+  const ar=$('moveArrow'); if(ar){const dx=S.mix.roll,dy=-S.mix.pitch,mag=Math.min(1,Math.hypot(dx,dy)/300);
+    ar.style.transform=`rotate(${Math.atan2(dy,dx)*180/Math.PI}deg)`;ar.style.opacity=0.15+0.75*mag;}}
+
 /* render loop */
-function ui(){if(S.imu)applyView();
+function ui(){if(S.imu){applyView();updateMini();}
   if(S.state!==2&&S.state!==1)setMixLimit('mixer idle');
   requestAnimationFrame(ui);}
 requestAnimationFrame(ui);
