@@ -455,7 +455,7 @@ $('lockBtn').onclick=()=>{lock=!lock;const b=$('lockBtn');b.classList.toggle('on
 function syncAxesUI(){$('axRoll').value=S.mix.roll;$('axRollV').textContent=S.mix.roll;
   $('axPitch').value=S.mix.pitch;$('axPitchV').textContent=S.mix.pitch;
   $('axYaw').value=S.mix.yaw;$('axYawV').textContent=S.mix.yaw;}
-try{makePad($('padAngle'),(nx,ny)=>{const s=mirror?-1:1;S.mix.roll=Math.round(s*nx*300);S.mix.pitch=Math.round(-ny*300);syncAxesUI();if(S.mix.on&&S.state===1)sendMix();});
+try{makePad($('padAngle'),(nx,ny)=>{const s=mirror?-1:1;S.mix.roll=Math.round(s*nx*300);S.mix.pitch=Math.round(s*-ny*300);syncAxesUI();if(S.mix.on&&S.state===1)sendMix();});
     makeWheel($('wheelYaw'),v=>{const s=mirror?-1:1;S.mix.yaw=Math.round(s*v*300);syncAxesUI();if(S.mix.on&&S.state===1)sendMix();});}catch(e){}
 function updateMini(){if(!S.imu)return;
   let roll=S.imu.roll,pitch=S.imu.pitch,yaw=S.imu.yaw;

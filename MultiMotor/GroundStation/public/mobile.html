@@ -245,13 +245,13 @@ function handleTelem(d){
   else if(d==='ARMED')setState(1);else if(d==='DISARMED')setState(0);else if(d==='KILLED')setState(2);else if(d==='TIMEOUT')setState(0);
 }
 
-/* joysticks (mirror flips roll+yaw) */
-makePad($('padAngle'),(nx,ny)=>{const s=S.mirror?-1:1;S.mix.roll=Math.round(s*nx*300);S.mix.pitch=Math.round(-ny*300);if(S.state===1)sendMix();});
+/* joysticks (mirror flips roll+pitch+yaw = full head-to-head remap) */
+makePad($('padAngle'),(nx,ny)=>{const s=S.mirror?-1:1;S.mix.roll=Math.round(s*nx*300);S.mix.pitch=Math.round(s*-ny*300);if(S.state===1)sendMix();});
 makeWheel($('wheelYaw'),v=>{const s=S.mirror?-1:1;S.mix.yaw=Math.round(s*v*300);if(S.state===1)sendMix();});
 $('thr').addEventListener('input',e=>{S.mix.thr=+e.target.value;$('thrV').textContent=e.target.value;if(S.state===1)sendMix();});
 
 /* mirror / lock */
-function setMirror(on){S.mirror=on;localStorage.setItem('dgs_mirror',on?'1':'0');const b=$('mirrorBtn');b.classList.toggle('on',on);b.textContent=on?'⇄ MIRROR ON':'⇄ MIRROR';const l=$('padLabel');if(l)l.textContent=on?'ANGLE · roll/pitch ⇄ MIRRORED':'ANGLE · roll/pitch';}
+function setMirror(on){S.mirror=on;localStorage.setItem('dgs_mirror',on?'1':'0');const b=$('mirrorBtn');b.classList.toggle('on',on);b.textContent=on?'⇄ MIRROR ON':'⇄ MIRROR';const l=$('padLabel');if(l)l.textContent=on?'ANGLE · R+P+Y ⇄ MIRRORED':'ANGLE · roll/pitch';}
 $('mirrorBtn').onclick=()=>setMirror(!S.mirror);
 setMirror(S.mirror);   /* apply/reflect persisted default (ON by default) */
 function setLock(on){S.lock=on;const b=$('lockBtn');b.classList.toggle('on',on);b.textContent=on?'🔒 LOCK ON':'LOCK';
