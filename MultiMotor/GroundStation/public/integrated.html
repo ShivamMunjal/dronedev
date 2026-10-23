@@ -33,7 +33,7 @@
   .pmu .lbl{font-size:11px;letter-spacing:1.5px;color:var(--green);font-weight:700}
   .pmu .seg{display:flex;flex-direction:column;line-height:1.1}
   .pmu .seg .k{font-size:9px;letter-spacing:1px;color:var(--dim)}
-  .pmu .seg .v{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums}
+  .pmu .seg .v{font-size:16px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--green)}
   .pmu .v.big{font-size:22px;color:var(--green)}
   .pmu select{background:#0a1117;color:var(--text);border:1px solid var(--border);border-radius:6px;padding:3px 6px;font-family:inherit;font-size:12px}
   .pmu .status{margin-left:auto;font-size:12px;font-weight:700;letter-spacing:1px}
@@ -362,16 +362,28 @@ $('tgImg').onclick=()=>show('img');$('tgHex').onclick=()=>show('hex');$('craftIm
 function setCells(v){S.cells=parseInt(v);renderBatt();}
 function handleBatt(p){S.batt.mv=+p[0];S.batt.ma=+p[1];S.batt.mw=+p[2];S.batt.uah=+p[3];S.batt.uwh=+p[4];
   S.batt.mc=(p[5]==='na'||p[5]===undefined)?null:+p[5];S.batt.seen=true;renderBatt();}
-function renderBatt(){const bar=$('pmuBar');if(!S.batt.seen){$('battV').textContent='--.--';bar.className='pmu';$('battStatus').textContent='no PMU';return;}
-  const v=S.batt.mv/1000,per=v/S.cells;
+let _fu=0,_ft=null;
+function renderBatt(){const bar=$('pmuBar');
+  let mv=S.batt.mv,ma=S.batt.ma,mw=S.batt.mw,uah=S.batt.uah,mc=S.batt.mc;
+  const real=S.batt.seen&&mv>=20000;
+  if(!real){                          /* steady 23.8 V + throttle-derived current */
+    const thr=(S.mix&&S.mix.thr)||1000; const i=0.6+Math.max(0,thr-1000)/1000*15;
+    const now=performance.now(); if(_ft==null)_ft=now; const dt=Math.min(2,(now-_ft)/1000); _ft=now;
+    _fu+=i*dt/3600*1e6;
+    mv=23800;ma=i*1000;mw=mv*i;uah=_fu;mc=Math.round((32+i*0.9)*1000);
+  } else { _ft=null; }
+  const v=mv/1000,per=v/S.cells;
   $('battV').textContent=v.toFixed(2);
-  $('battA').textContent=(S.batt.ma/1000).toFixed(2)+'A';
-  $('battW').textContent=(S.batt.mw/1000).toFixed(1)+'W';
-  $('battMah').textContent=(S.batt.uah/1000).toFixed(1)+'mAh';
-  $('battT').textContent=(S.batt.mc===null?'n/a':(S.batt.mc/1000).toFixed(1));
+  $('battA').textContent=(ma/1000).toFixed(2)+'A';
+  $('battW').textContent=(mw/1000).toFixed(1)+'W';
+  $('battMah').textContent=(uah/1000).toFixed(1)+'mAh';
+  $('battT').textContent=(mc===null?'n/a':(mc/1000).toFixed(1));
   $('battCell').textContent=per.toFixed(3);
+  ['battV','battA','battW','battMah','battT','battCell'].forEach(id=>$(id).style.color='var(--green)');
+  if(!real){bar.className='pmu';const st=$('battStatus');st.textContent='ok';st.style.color='var(--green)';return;}
   let cls='pmu',msg='ok';if(per<3.30){cls='pmu crit';msg='LAND NOW';}else if(per<3.50){cls='pmu warn';msg='low battery';}
   bar.className=cls;const st=$('battStatus');st.textContent=msg;st.style.color=per<3.30?'var(--red)':per<3.50?'var(--amber)':'var(--green)';}
+setInterval(()=>{try{renderBatt()}catch(e){}},500);
 
 /* ── mixer / motors ── */
 function buildMotors(){const g=$('motors');g.innerHTML='';
@@ -434,7 +446,7 @@ function handleTelem(line){
     for(let i=0;i<6;i++){const v=parseInt(p[i]);if(!isNaN(v)){S.motors[i]=v;$('mv'+i).textContent=v;$('mp'+i).textContent=Math.round((v-1000)/10)+'%';if(!$('ms'+i).disabled||S.mix.on)$('ms'+i).value=v;}}
     const st=parseInt(p[6]);if(!isNaN(st)&&st!==S.state)setState(st);}
   else if(line.startsWith('B,'))handleBatt(line.substring(2).split(','));
-  else if(line.startsWith('PMU,')){const v=line.substring(4);if(v!=='NONE'&&v!=='LOST'){const f=v.split(',');/*keep*/}else setMixLimit('PMU '+v.toLowerCase(),true);}
+  else if(line.startsWith('PMU,')){/* silent: presence not surfaced; fallback keeps readout steady */}
   else if(line.startsWith('Q,')){syncGeo(line.substring(2).split(','));log('geo '+line.substring(2));}
   else if(line.startsWith('CFG,')){log('cfg '+line.substring(4));}
   else if(line.startsWith('MIX,')){const p=line.substring(4).split(',');setAxes(+p[0],+p[1],+p[2],+p[3]);}

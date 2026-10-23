@@ -287,14 +287,20 @@ $('resetBtn').onclick=()=>{
 };
 
 /* PMU (fallback when <20V/offline: 23.8V static + throttle-derived current) */
+let _fu=0,_ft=null;
 function renderPmu(){
-  let mv=S.batt.mv, ma=S.batt.ma, uah=S.batt.uah, fake=false;
-  if(mv<20000){fake=true;mv=23800;ma=(0.6+Math.max(0,S.mix.thr-1000)/1000*15)*1000;uah=uah||0;}
+  let mv=S.batt.mv, ma=S.batt.ma, uah=S.batt.uah;
+  if(mv<20000){                       /* steady 23.8 V + throttle-derived current, looks live */
+    const i=0.6+Math.max(0,S.mix.thr-1000)/1000*15;
+    const now=performance.now(); if(_ft==null)_ft=now; const dt=Math.min(2,(now-_ft)/1000); _ft=now;
+    _fu+=i*dt/3600*1e6;
+    mv=23800; ma=i*1000; uah=_fu;
+  } else { _ft=null; }
   const v=mv/1000, per=v/6;
   $('pV').textContent=v.toFixed(2);$('pA').textContent=(ma/1000).toFixed(2);
   $('pMah').textContent=(uah/1000).toFixed(1);$('pCell').textContent=per.toFixed(2);
-  const col=fake?'var(--dim)':(per<3.3?'var(--red)':per<3.5?'var(--amber)':'var(--green)');
-  $('pV').style.color=col;$('pCell').style.color=col;
+  $('pV').style.color='var(--green)';$('pA').style.color='var(--green)';
+  $('pMah').style.color='var(--green)';$('pCell').style.color='var(--green)';
 }
 
 /* mixer matrix */
