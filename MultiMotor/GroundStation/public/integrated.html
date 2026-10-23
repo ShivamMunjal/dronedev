@@ -102,7 +102,7 @@
   .center{flex:0 0 32%;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
   .craftWrap{position:relative;width:min(160px,20vw);aspect-ratio:1;display:grid;place-items:center;perspective:600px}
   #mini{width:88%;will-change:transform;transform-origin:center;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
-  #moveArrow{position:absolute;inset:0;margin:auto;width:92%;height:92%;opacity:.2;transform:rotate(0deg);pointer-events:none}
+  #moveArrow{position:absolute;inset:0;margin:auto;width:92%;height:92%;opacity:0;transform:rotate(0deg);pointer-events:none}
   .cl{font-size:9px;letter-spacing:1px;color:var(--dim);margin-top:2px}
 
   .motors{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
@@ -454,7 +454,8 @@ function updateMini(){if(!S.imu)return;
   if(S.haveRef){roll=wrap180(roll-S.ref.roll);pitch=wrap180(pitch-S.ref.pitch);yaw=wrap180(yaw-S.ref.yaw);}
   const m=$('mini'); if(m)m.style.transform=`perspective(600px) rotateZ(${yaw}deg) rotateX(${-pitch}deg) rotateY(${roll}deg)`;
   const ar=$('moveArrow'); if(ar){const dx=S.mix.roll,dy=-S.mix.pitch,mag=Math.min(1,Math.hypot(dx,dy)/300);
-    ar.style.transform=`rotate(${Math.atan2(dy,dx)*180/Math.PI}deg)`;ar.style.opacity=0.15+0.75*mag;}}
+    ar.style.transform=`rotate(${Math.atan2(dy,dx)*180/Math.PI}deg)`;
+    ar.style.opacity = mag < 0.02 ? 0 : Math.min(1, 0.25 + 0.85*mag);}}
 
 /* render loop */
 function ui(){if(S.imu){applyView();updateMini();}

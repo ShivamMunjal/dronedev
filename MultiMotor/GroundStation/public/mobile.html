@@ -54,7 +54,7 @@
   .center{flex:0 0 26vw;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;min-width:0}
   .craftWrap{position:relative;width:min(24vw,30vh);aspect-ratio:1;display:grid;place-items:center;perspective:600px}
   #mini{width:88%;will-change:transform;transform-origin:center;filter:drop-shadow(0 8px 12px rgba(0,0,0,.6))}
-  #moveArrow{position:absolute;inset:0;margin:auto;width:92%;height:92%;opacity:.25;transform:rotate(0deg);pointer-events:none}
+  #moveArrow{position:absolute;inset:0;margin:auto;width:92%;height:92%;opacity:0;transform:rotate(0deg);pointer-events:none}
   .center .cl{font-size:9px;letter-spacing:1px;color:var(--dim);margin-top:2px}
 
   footer{display:flex;align-items:center;gap:8px;padding:6px 12px;border-top:1px solid var(--border);background:#0b1218;flex-wrap:wrap}
@@ -221,7 +221,7 @@ function ui(){
     $('mini').style.transform=t;
     const dx=S.mix.roll, dy=-S.mix.pitch, mag=Math.min(1,Math.hypot(dx,dy)/300);
     $('moveArrow').style.transform=`rotate(${Math.atan2(dy,dx)*180/Math.PI}deg)`;
-    $('moveArrow').style.opacity=0.15+0.75*mag;
+    $('moveArrow').style.opacity = mag < 0.02 ? 0 : Math.min(1, 0.25 + 0.85*mag);
   }
   requestAnimationFrame(ui);
 }
