@@ -235,6 +235,8 @@
     <div class="row" style="margin:8px 0">
       <button id="modeSliders" class="mode on">🎚 SLIDERS</button>
       <button id="modeJoy" class="mode">🕹 JOYSTICK</button>
+      <button id="mirrorBtn" class="mode">⇄ MIRROR</button>
+      <button id="lockBtn" class="mode">LOCK</button>
       <span class="limit" id="joyHint">MIX ON + ARM to apply</span>
     </div>
 
@@ -395,7 +397,9 @@ function setAxes(thr,roll,pitch,yaw){S.mix.thr=thr;S.mix.roll=roll;S.mix.pitch=p
   $('axPitch').value=pitch;$('axPitchV').textContent=pitch;$('axYaw').value=yaw;$('axYawV').textContent=yaw;}
 function axChange(n,v){S.mix[n]=parseInt(v);$('ax'+n.charAt(0).toUpperCase()+n.slice(1)+'V').textContent=v;if(S.mix.on&&S.state===1)sendMix();}
 function setAxesEnabled(on){/* axes always editable; X only applies when armed */}
-function sendMix(){send(`X${S.mix.thr},${S.mix.roll},${S.mix.pitch},${S.mix.yaw}`);}
+function sendMix(){let thr=S.mix.thr,r=S.mix.roll,p=S.mix.pitch,y=S.mix.yaw;
+  if(lock){thr=Math.min(thr,1350);r=Math.max(-70,Math.min(70,r));p=Math.max(-70,Math.min(70,p));y=Math.max(-70,Math.min(70,y));}
+  send(`X${thr},${r},${p},${y}`);}
 function toggleMix(){S.mix.on=!S.mix.on;const b=$('mixBtn');b.textContent=S.mix.on?'MIX ON':'MIX OFF';b.classList.toggle('on',S.mix.on);
   if(S.mix.timer){clearInterval(S.mix.timer);S.mix.timer=null;}   /* no continuous X: server mirrors on-input sends */
   if(S.mix.on&&S.state===1)sendMix();}
@@ -441,15 +445,17 @@ function handleTelem(line){
 }
 
 /* joystick mode + mini craft */
-let joyMode=false;
+let joyMode=false, mirror=false, lock=false;
 function setMode(joy){joyMode=joy;$('axesSliders').style.display=joy?'none':'grid';$('axesJoystick').style.display=joy?'flex':'none';
   $('modeSliders').classList.toggle('on',!joy);$('modeJoy').classList.toggle('on',joy);}
 $('modeSliders').onclick=()=>setMode(false); $('modeJoy').onclick=()=>setMode(true);
+$('mirrorBtn').onclick=()=>{mirror=!mirror;const b=$('mirrorBtn');b.classList.toggle('on',mirror);b.textContent=mirror?'⇄ MIRROR ON':'⇄ MIRROR';};
+$('lockBtn').onclick=()=>{lock=!lock;const b=$('lockBtn');b.classList.toggle('on',lock);b.textContent=lock?'🔒 LOCK ON':'LOCK';if(lock&&S.state===1)sendMix();};
 function syncAxesUI(){$('axRoll').value=S.mix.roll;$('axRollV').textContent=S.mix.roll;
   $('axPitch').value=S.mix.pitch;$('axPitchV').textContent=S.mix.pitch;
   $('axYaw').value=S.mix.yaw;$('axYawV').textContent=S.mix.yaw;}
-try{makePad($('padAngle'),(nx,ny)=>{S.mix.roll=Math.round(nx*300);S.mix.pitch=Math.round(-ny*300);syncAxesUI();if(S.mix.on&&S.state===1)sendMix();});
-    makeWheel($('wheelYaw'),v=>{S.mix.yaw=Math.round(v*300);syncAxesUI();if(S.mix.on&&S.state===1)sendMix();});}catch(e){}
+try{makePad($('padAngle'),(nx,ny)=>{const s=mirror?-1:1;S.mix.roll=Math.round(s*nx*300);S.mix.pitch=Math.round(-ny*300);syncAxesUI();if(S.mix.on&&S.state===1)sendMix();});
+    makeWheel($('wheelYaw'),v=>{const s=mirror?-1:1;S.mix.yaw=Math.round(s*v*300);syncAxesUI();if(S.mix.on&&S.state===1)sendMix();});}catch(e){}
 function updateMini(){if(!S.imu)return;
   let roll=S.imu.roll,pitch=S.imu.pitch,yaw=S.imu.yaw;
   if(S.haveRef){roll=wrap180(roll-S.ref.roll);pitch=wrap180(pitch-S.ref.pitch);yaw=wrap180(yaw-S.ref.yaw);}
