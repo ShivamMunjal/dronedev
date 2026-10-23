@@ -187,6 +187,7 @@ int main(void)
     uint32_t last_ramp = 0;
     uint32_t last_pmu = 0;
     uint32_t last_batt = 0;
+    uint32_t last_pmu_try = 0;
     while (1) {
         if (cmd_ready) { cmd_ready = 0; process_cmd(); }
 
@@ -219,6 +220,14 @@ int main(void)
             for (int i = 0; i < 6; i++) { uart_send_uint(motor_ccr[i]); uart_send_char(','); }
             uart_send_char('0' + motor_state);
             uart_send_str("\r\n");
+        }
+
+        /* Auto re-probe the PMU if it dropped off (e.g. the battery was
+         * switched off then back on). pmu_init() binds I2C1 itself, so this is
+         * safe even though the loop leaves I2C2 selected for the IMU. */
+        if (pmu_data()->chip == 0 && (sys_tick - last_pmu_try) >= 2000) {
+            last_pmu_try = sys_tick;
+            if (pmu_init() == 0) { pmu_was_online = 1; send_pmu_identity(); }
         }
 
         /* Power module: sample at 10 Hz (counters use the real elapsed time),

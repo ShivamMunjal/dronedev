@@ -42,6 +42,10 @@ static void snapshot_publish(void)
 
 int pmu_init(void)
 {
+    /* The shared I2C driver is instance-switched (I2C1 = PMU, I2C2 = IMU).
+     * Always bind to I2C1 here so a re-probe cannot land on the IMU's bus when
+     * the caller happened to leave I2C2 selected. */
+    i2c_select(1);
     const uint32_t candidates[2] = { I2C_AF, I2C_AF_ALT };
 
     s_pmu.chip   = INA_CHIP_NONE;
@@ -75,6 +79,8 @@ int pmu_read(uint32_t dt_ms)
     if (!s_online || s_ctx.chip == INA_CHIP_NONE) {
         return -1;                    /* no I2C traffic, no cost */
     }
+
+    i2c_select(1);                    /* PMU lives on I2C1 */
 
     if (ina_read(&s_ctx, &s) != 0) {
         s_pmu.errors++;
