@@ -187,7 +187,6 @@ int main(void)
     uint32_t last_ramp = 0;
     uint32_t last_pmu = 0;
     uint32_t last_batt = 0;
-    uint32_t last_pmu_try = 0;
     while (1) {
         if (cmd_ready) { cmd_ready = 0; process_cmd(); }
 
@@ -222,13 +221,11 @@ int main(void)
             uart_send_str("\r\n");
         }
 
-        /* Auto re-probe the PMU if it dropped off (e.g. the battery was
-         * switched off then back on). pmu_init() binds I2C1 itself, so this is
-         * safe even though the loop leaves I2C2 selected for the IMU. */
-        if (pmu_data()->chip == 0 && (sys_tick - last_pmu_try) >= 2000) {
-            last_pmu_try = sys_tick;
-            if (pmu_init() == 0) { pmu_was_online = 1; send_pmu_identity(); }
-        }
+        /* NOTE: the PMU is deliberately NOT auto-re-probed here. A failed
+         * probe blocks the loop for ~240 ms (I2C timeouts), which starves the
+         * IMU fusion and makes the attitude jump. The PMU is probed at boot
+         * and on demand ('B' from a dashboard); losing it costs the IMU zero.
+         * pmu_read() is a no-op while offline, so the loop stays fast. */
 
         /* Power module: sample at 10 Hz (counters use the real elapsed time),
          * report to the GUI at 5 Hz. */
@@ -740,7 +737,9 @@ static void imu_poll(void)
 
     float dt = (float)(sys_tick - imu_prev_tick) / 1000.0f;
     imu_prev_tick = sys_tick;
-    if (dt <= 0.0f || dt > 0.5f) dt = 0.01f;
+    /* Clamp outliers: if the loop was briefly delayed, feed the nominal period
+     * instead of a huge dt (a big dt makes MotionFX swing the attitude). */
+    if (dt <= 0.0f || dt > 0.05f) dt = 0.01f;
 
     ism_sample_t b = s;
     b.gx = (int16_t)(s.gx - imu_gbias[0]);

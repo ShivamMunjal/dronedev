@@ -119,6 +119,11 @@ async function connectSerial() {
         } else if (line[0] === '#') {
             broadcast({ type: 'log', data: line });
         }
+        if (line.startsWith('MIX,')) {
+            const p = line.substring(4).split(',').map(Number);
+            if (p.length >= 4 && p.every(n => !isNaN(n)))
+                broadcast({ type: 'mix', thr: p[0], roll: p[1], pitch: p[2], yaw: p[3] });
+        }
     });
 }
 
@@ -132,6 +137,15 @@ wss.on('connection', (ws) => {
 
     ws.on('message', (msg) => {
         const cmd = msg.toString().trim();
+        if (!cmd) return;
+
+        /* Mirror mixer intent to every client so the desktop dashboard and the
+         * phone PWA stay in sync, then forward to the firmware. */
+        if (cmd[0] === 'X') {
+            const p = cmd.substring(1).split(',').map(Number);
+            if (p.length >= 4 && p.every(n => !isNaN(n)))
+                broadcast({ type: 'mix', thr: p[0], roll: p[1], pitch: p[2], yaw: p[3] });
+        }
         if (serial && serialConnected) {
             serial.write(cmd + '\n');
         }

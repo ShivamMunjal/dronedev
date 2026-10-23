@@ -323,6 +323,7 @@ function connect(){ws=new WebSocket(`ws://${location.host}`);
     else if(m.type==='e'){onImu(m);}
     else if(m.type==='telemetry'){handleTelem(m.data);}
     else if(m.type==='log'){if(/^#/.test(m.data))log(m.data);}
+    else if(m.type==='mix'){ setAxes(m.thr|0,m.roll|0,m.pitch|0,m.yaw|0); }
   };
 }
 connect();
@@ -392,12 +393,12 @@ function applyGeo(){for(let i=0;i<6;i++){const a=parseInt($('ga'+i).value)||0;co
 function setAxes(thr,roll,pitch,yaw){S.mix.thr=thr;S.mix.roll=roll;S.mix.pitch=pitch;S.mix.yaw=yaw;
   $('axThr').value=thr;$('axThrV').textContent=thr;$('axRoll').value=roll;$('axRollV').textContent=roll;
   $('axPitch').value=pitch;$('axPitchV').textContent=pitch;$('axYaw').value=yaw;$('axYawV').textContent=yaw;}
-function axChange(n,v){S.mix[n]=parseInt(v);$('ax'+n.charAt(0).toUpperCase()+n.slice(1)+'V').textContent=v;}
+function axChange(n,v){S.mix[n]=parseInt(v);$('ax'+n.charAt(0).toUpperCase()+n.slice(1)+'V').textContent=v;if(S.mix.on&&S.state===1)sendMix();}
 function setAxesEnabled(on){/* axes always editable; X only applies when armed */}
+function sendMix(){send(`X${S.mix.thr},${S.mix.roll},${S.mix.pitch},${S.mix.yaw}`);}
 function toggleMix(){S.mix.on=!S.mix.on;const b=$('mixBtn');b.textContent=S.mix.on?'MIX ON':'MIX OFF';b.classList.toggle('on',S.mix.on);
-  if(S.mix.on){if(S.mix.timer)clearInterval(S.mix.timer);
-    S.mix.timer=setInterval(()=>{if(S.mix.on&&S.state===1)send(`X${S.mix.thr},${S.mix.roll},${S.mix.pitch},${S.mix.yaw}`);},50);
-  }else{if(S.mix.timer){clearInterval(S.mix.timer);S.mix.timer=null;}}}
+  if(S.mix.timer){clearInterval(S.mix.timer);S.mix.timer=null;}   /* no continuous X: server mirrors on-input sends */
+  if(S.mix.on&&S.state===1)sendMix();}
 $('mixBtn').onclick=toggleMix;
 function setMixLimit(t,warn){const e=$('mixLimit');e.textContent=t;e.className='limit'+(warn?' warn':'');}
 function sliderChange(i,v){S.motors[i]=parseInt(v);$('mv'+i).textContent=v;$('mp'+i).textContent=Math.round((v-1000)/10)+'%';
@@ -420,7 +421,7 @@ function setState(st){S.state=st;const b=$('stateBadge');const names=['DISARMED'
   if(st===2)setMixLimit('KILLED — press RESET KILL',true);
   if(!armed){setAxes(1000,0,0,0);}
   if(kTimer){clearInterval(kTimer);kTimer=null;}
-  if(armed&&!S.mix.on){kTimer=setInterval(()=>{if(S.state===1&&!S.mix.on)send('K');},400);}
+  if(armed){kTimer=setInterval(()=>{if(S.state===1)send('K');},400);}
 }
 
 function handleTelem(line){
@@ -447,8 +448,8 @@ $('modeSliders').onclick=()=>setMode(false); $('modeJoy').onclick=()=>setMode(tr
 function syncAxesUI(){$('axRoll').value=S.mix.roll;$('axRollV').textContent=S.mix.roll;
   $('axPitch').value=S.mix.pitch;$('axPitchV').textContent=S.mix.pitch;
   $('axYaw').value=S.mix.yaw;$('axYawV').textContent=S.mix.yaw;}
-try{makePad($('padAngle'),(nx,ny)=>{S.mix.roll=Math.round(nx*300);S.mix.pitch=Math.round(-ny*300);syncAxesUI();});
-    makeWheel($('wheelYaw'),v=>{S.mix.yaw=Math.round(v*300);syncAxesUI();});}catch(e){}
+try{makePad($('padAngle'),(nx,ny)=>{S.mix.roll=Math.round(nx*300);S.mix.pitch=Math.round(-ny*300);syncAxesUI();if(S.mix.on&&S.state===1)sendMix();});
+    makeWheel($('wheelYaw'),v=>{S.mix.yaw=Math.round(v*300);syncAxesUI();if(S.mix.on&&S.state===1)sendMix();});}catch(e){}
 function updateMini(){if(!S.imu)return;
   let roll=S.imu.roll,pitch=S.imu.pitch,yaw=S.imu.yaw;
   if(S.haveRef){roll=wrap180(roll-S.ref.roll);pitch=wrap180(pitch-S.ref.pitch);yaw=wrap180(yaw-S.ref.yaw);}
