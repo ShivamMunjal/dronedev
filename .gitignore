@@ -38,3 +38,6 @@ sensor/external/
 # Run IMU/setup_motionfx.sh to populate it from an installed MEMS Studio.
 IMU/Middlewares/MotionFX/Lib/*.a
 IMU/Middlewares/MotionFX/Release_Notes.html
+
+# Local recovery backups (may contain ST proprietary libs - SLA0077)
+_backup/
