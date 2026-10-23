@@ -323,8 +323,9 @@ function ui(){
     $('vRoll').textContent=(roll>=0?'+':'')+roll.toFixed(1)+'°';
     $('vPitch').textContent=(pitch>=0?'+':'')+pitch.toFixed(1)+'°';
     $('vYaw').textContent=(yaw>=0?'+':'')+yaw.toFixed(1)+'°';
-    $('mini').style.transform=`perspective(600px) rotateZ(${yaw}deg) rotateX(${-pitch}deg) rotateY(${roll}deg)`;
-    const dx=S.mix.roll, dy=-S.mix.pitch, mag=Math.min(1,Math.hypot(dx,dy)/300);
+    const ms=S.mirror?-1:1;   /* mirror the centre craft + arrow too */
+    $('mini').style.transform=`perspective(600px) rotateZ(${ms*yaw}deg) rotateX(${ms*-pitch}deg) rotateY(${ms*roll}deg)`;
+    const dx=ms*S.mix.roll, dy=-ms*S.mix.pitch, mag=Math.min(1,Math.hypot(dx,dy)/300);
     $('moveArrow').style.transform=`rotate(${Math.atan2(dy,dx)*180/Math.PI}deg)`;
     $('moveArrow').style.opacity = mag<0.02?0:Math.min(1,0.25+0.85*mag);
   }
