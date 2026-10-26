@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
-<meta name="theme-color" content="#020A14">
+<meta name="theme-color" content="#F7F3EA">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="DroneGS">
@@ -12,18 +12,18 @@
 <link rel="apple-touch-icon" href="icon-192.png">
 <title>Drone GS — Mobile</title>
 <style>
-  :root{--bg:#020A14;--panel:#051526;--panel2:#04101E;--border:#123A5E;--text:#E4EEFF;--dim:#7EA2C8;
-        --cyan:#FFD100;--green:#2E8BFF;--amber:#FFD100;--red:#FF5A5A;--blue:#5AA6FF;--violet:#7FB4FF;--pink:#FFD966}
+  :root{--bg:#F7F3EA;--panel:#FFFDF8;--panel2:#FBF7EF;--border:#D8DEE8;--text:#12233A;--dim:#5F6E80;
+        --cyan:#0F62FE;--green:#0F62FE;--amber:#A86A00;--red:#C62828;--blue:#0F62FE;--violet:#5B4B9E;--pink:#B03A6B}
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;height:100%;overflow:hidden;color:var(--text);
-    background:radial-gradient(1000px 520px at 50% -10%,#06213A,#01060D 72%);
+    background:radial-gradient(1000px 520px at 50% -10%,#06213A,#EFE9DC 72%);
     font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;touch-action:none;user-select:none}
   #app{display:flex;flex-direction:column;height:100dvh;
        padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left)}
 
   /* header */
   header{display:flex;align-items:center;gap:10px;padding:6px 12px;border-bottom:1px solid var(--border);
-    background:linear-gradient(180deg,#061A2E,#051526);flex-wrap:wrap}
+    background:linear-gradient(180deg,#FFFDF7,#FFFDF8);flex-wrap:wrap}
   .imu{display:flex;gap:14px;flex:1;min-width:0}
   .imu .k,.pmu .k{font-size:8px;letter-spacing:1.5px;color:var(--dim)}
   .imu .v{font-size:20px;font-weight:800;font-variant-numeric:tabular-nums;line-height:1}
@@ -33,9 +33,9 @@
   .chips{display:flex;gap:5px;align-items:center}
   .chip{font-size:9px;letter-spacing:1px;border:1px solid var(--border);border-radius:6px;padding:3px 7px;color:var(--dim);
     background:transparent;font-family:inherit}
-  .chip.on{color:var(--green);border-color:var(--green);background:#0A2A47}
+  .chip.on{color:var(--green);border-color:var(--green);background:#DCE7F5}
   .chip.err{color:var(--red);border-color:var(--red)}
-  .chip.tog{color:var(--dim)} .chip.tog.on{color:var(--cyan);border-color:var(--cyan);background:#3A2E00}
+  .chip.tog{color:var(--dim)} .chip.tog.on{color:var(--cyan);border-color:var(--cyan);background:#FFF1BF}
   .chip.fs{font-size:14px;padding:1px 8px}
 
   main{flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 12px;min-height:0}
@@ -43,20 +43,20 @@
   .jl{font-size:9px;letter-spacing:1.5px;color:var(--dim);margin-top:5px}
 
   .pad,.wheel{position:relative;border-radius:50%;touch-action:none;
-    border:2px solid var(--border);background:radial-gradient(circle at 50% 45%,#051526,#01060D 72%);
+    border:2px solid var(--border);background:radial-gradient(circle at 50% 45%,#FFFDF8,#EFE9DC 72%);
     width:min(38vw,50vh);aspect-ratio:1;max-width:100%}
-  .pad{border-color:#14487A}
-  .pad::before,.pad::after{content:"";position:absolute;background:#0A2A47}
+  .pad{border-color:#C9D6E8}
+  .pad::before,.pad::after{content:"";position:absolute;background:#DCE7F5}
   .pad::before{left:50%;top:7%;bottom:7%;width:1px}
   .pad::after{top:50%;left:7%;right:7%;height:1px}
   .wheel{box-shadow:inset 0 0 26px rgba(255,209,0,.10)}
-  .wheel .rim{position:absolute;inset:12%;border:1px dashed #123A5E;border-radius:50%}
+  .wheel .rim{position:absolute;inset:12%;border:1px dashed #D8DEE8;border-radius:50%}
   .wheel .tick{position:absolute;left:50%;top:5%;width:2px;height:9px;background:var(--amber);transform:translateX(-1px)}
 
   .knob{position:absolute;left:50%;top:50%;border-radius:50%;will-change:transform;
-    border:2px solid var(--cyan);background:#3A2E00;box-shadow:0 0 16px rgba(255,209,0,.4)}
+    border:2px solid var(--cyan);background:#FFF1BF;box-shadow:0 0 16px rgba(255,209,0,.4)}
   .pad .knob{width:56px;height:56px;margin:-30px 0 0 -30px}
-  .wheel .knob{width:40px;height:40px;margin:-22px 0 0 -22px;border-color:var(--amber);background:#3A2E00;box-shadow:0 0 16px rgba(255,209,0,.45)}
+  .wheel .knob{width:40px;height:40px;margin:-22px 0 0 -22px;border-color:var(--amber);background:#FFF1BF;box-shadow:0 0 16px rgba(255,209,0,.45)}
   .pad .knob::after{content:"✛";position:absolute;inset:0;display:grid;place-items:center;color:var(--cyan);font-size:18px}
 
   /* centre */
@@ -68,27 +68,27 @@
   .cbtns{display:flex;flex-direction:column;gap:5px;margin-top:5px;width:100%;align-items:center}
   .b-cal{font-size:10px;font-weight:800;letter-spacing:1px;padding:6px 12px;color:var(--green);border:2px solid var(--green);
     border-radius:8px;background:transparent;font-family:inherit}
-  .b-reset{font-size:10px;font-weight:800;letter-spacing:1px;padding:6px 12px;color:#fff;background:#5A1010;border:2px solid var(--red);
+  .b-reset{font-size:10px;font-weight:800;letter-spacing:1px;padding:6px 12px;color:#fff;background:#B71C1C;border:2px solid var(--red);
     border-radius:8px;font-family:inherit}
   .b-cal:active,.b-reset:active{transform:scale(.96)}
 
   /* matrix strip */
   .matrix{display:flex;align-items:center;gap:10px;padding:4px 12px 6px;border-top:1px solid var(--border);
-    background:linear-gradient(180deg,#051526,#061A2E)}
+    background:linear-gradient(180deg,#FFFDF8,#FFFDF7)}
   .mhead{font-size:8px;letter-spacing:1.5px;color:var(--dim);writing-mode:vertical-rl;transform:rotate(180deg);
     border-right:1px solid var(--border);padding-right:6px}
   .mcells{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;flex:1}
   .mc2{background:var(--panel2);border:1px solid var(--border);border-radius:7px;padding:3px 5px;min-width:0}
   .mc2 .t{font-size:8px;color:var(--dim);letter-spacing:1px;display:flex;justify-content:space-between}
   .mc2 .v{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums;color:var(--cyan)}
-  .mc2 .bar{height:3px;border-radius:2px;background:#0A2A47;margin-top:2px;overflow:hidden}
+  .mc2 .bar{height:3px;border-radius:2px;background:#DCE7F5;margin-top:2px;overflow:hidden}
   .mc2 .bar i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--cyan),var(--green))}
   .mformula{font-size:8px;color:var(--dim);letter-spacing:.5px;max-width:34%;line-height:1.35}
   .mformula b{color:var(--text)}
 
   /* footer */
   footer{display:flex;align-items:center;gap:7px;padding:5px 12px;border-top:1px solid var(--border);
-    background:linear-gradient(180deg,#061A2E,#051526);flex-wrap:wrap}
+    background:linear-gradient(180deg,#FFFDF7,#FFFDF8);flex-wrap:wrap}
   .state{font-size:12px;font-weight:800;letter-spacing:2px;padding:4px 9px;border-radius:7px;border:1px solid var(--border)}
   .state.disarmed{color:var(--dim)} .state.armed{color:var(--green);border-color:var(--green)} .state.killed{color:var(--red);border-color:var(--red)}
   .thr{display:flex;align-items:center;gap:6px;flex:1;min-width:110px}
@@ -100,16 +100,16 @@
   button:disabled{opacity:.35}
   .b-arm{color:var(--green);border-color:var(--green)} .b-dis{color:var(--amber);border-color:var(--amber)}
   .b-estop{color:#fff;background:var(--red);border-color:var(--red)}
-  .b-mix{color:var(--dim);border-color:var(--dim);min-width:58px} .b-mix.on{color:var(--green);border-color:var(--green);background:#0A2A47}
+  .b-mix{color:var(--dim);border-color:var(--dim);min-width:58px} .b-mix.on{color:var(--green);border-color:var(--green);background:#DCE7F5}
 
-  #rotate{position:fixed;inset:0;display:none;place-items:center;text-align:center;background:#01060D;color:var(--dim);
+  #rotate{position:fixed;inset:0;display:none;place-items:center;text-align:center;background:#EFE9DC;color:var(--dim);
     font-size:14px;letter-spacing:1px;z-index:50}
   @media (orientation:portrait){#rotate{display:grid}}
-  #toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);background:var(--green);color:#001A33;
+  #toast{position:fixed;left:50%;bottom:64px;transform:translateX(-50%);background:var(--green);color:#FFFFFF;
     font-weight:800;font-size:12px;padding:7px 15px;border-radius:8px;opacity:0;transition:.2s;pointer-events:none;z-index:60}
   #toast.show{opacity:1}
 </style>
-<style>/* ST theme accent */body::after{content:"";position:fixed;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#2E8BFF,#FFD100);z-index:2147483647;pointer-events:none}</style>
+<style>/* ST theme accent */body::after{content:"";position:fixed;left:0;right:0;top:0;height:3px;background:linear-gradient(90deg,#0F62FE,#FFD100);z-index:2147483647;pointer-events:none}</style>
 </head>
 <body>
 <div id="app">
@@ -144,7 +144,7 @@
     <div class="center">
       <div class="craftWrap">
         <svg id="mini" viewBox="-120 -120 240 240">
-          <g stroke="#14487A" stroke-width="9" stroke-linecap="round">
+          <g stroke="#C9D6E8" stroke-width="9" stroke-linecap="round">
             <line x1="0" y1="0" x2="47.5" y2="-82.3"/><line x1="0" y1="0" x2="95" y2="0"/>
             <line x1="0" y1="0" x2="47.5" y2="82.3"/><line x1="0" y1="0" x2="-47.5" y2="82.3"/>
             <line x1="0" y1="0" x2="-95" y2="0"/><line x1="0" y1="0" x2="-47.5" y2="-82.3"/>
@@ -153,12 +153,12 @@
             <circle cx="47.5" cy="-82.3" r="30"/><circle cx="95" cy="0" r="30"/><circle cx="47.5" cy="82.3" r="30"/>
             <circle cx="-47.5" cy="82.3" r="30"/><circle cx="-95" cy="0" r="30"/><circle cx="-47.5" cy="-82.3" r="30"/>
           </g>
-          <g fill="#051526" stroke="#1B4E7A" stroke-width="2">
+          <g fill="#FFFDF8" stroke="#B9C9DE" stroke-width="2">
             <circle cx="47.5" cy="-82.3" r="14"/><circle cx="95" cy="0" r="14"/><circle cx="47.5" cy="82.3" r="14"/>
             <circle cx="-47.5" cy="82.3" r="14"/><circle cx="-95" cy="0" r="14"/><circle cx="-47.5" cy="-82.3" r="14"/>
           </g>
-          <polygon points="0,-46 40,-23 40,23 0,46 -40,23 -40,-23" fill="#0A2A47" stroke="#1B4E7A" stroke-width="2"/>
-          <polygon points="0,-66 12,-46 -12,-46" fill="#FF5A5A"/><circle cx="0" cy="0" r="6" fill="#FFD100"/>
+          <polygon points="0,-46 40,-23 40,23 0,46 -40,23 -40,-23" fill="#DCE7F5" stroke="#B9C9DE" stroke-width="2"/>
+          <polygon points="0,-66 12,-46 -12,-46" fill="#C62828"/><circle cx="0" cy="0" r="6" fill="#FFD100"/>
         </svg>
         <svg id="moveArrow" viewBox="-50 -50 100 100"><line x1="0" y1="0" x2="36" y2="0" stroke="#FFD100" stroke-width="3" stroke-linecap="round"/><polygon points="36,-6 48,0 36,6" fill="#FFD100"/></svg>
       </div>
