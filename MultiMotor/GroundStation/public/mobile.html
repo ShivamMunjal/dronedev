@@ -61,7 +61,9 @@
 
   /* centre */
   .center{flex:0 0 27vw;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
-  .craftWrap{position:relative;width:min(23vw,28vh);aspect-ratio:1;display:grid;place-items:center;perspective:600px}
+  .craftWrap{position:relative;width:min(23vw,28vh);aspect-ratio:1;display:grid;place-items:center;perspective:600px;
+    background:radial-gradient(circle at 50% 42%,#FFE86B,#FFD100 72%);border:2px solid #E6B800;border-radius:50%;
+    box-shadow:0 6px 18px rgba(255,209,0,.35),inset 0 0 20px rgba(255,255,255,.35)}
   #mini{width:88%;will-change:transform;transform-origin:center;filter:drop-shadow(0 8px 12px rgba(0,0,0,.6))}
   #moveArrow{position:absolute;inset:0;margin:auto;width:92%;height:92%;opacity:0;transform:rotate(0deg);pointer-events:none}
   .cl{font-size:8px;letter-spacing:1.5px;color:var(--dim);margin-top:2px}
@@ -149,7 +151,7 @@
             <line x1="0" y1="0" x2="47.5" y2="82.3"/><line x1="0" y1="0" x2="-47.5" y2="82.3"/>
             <line x1="0" y1="0" x2="-95" y2="0"/><line x1="0" y1="0" x2="-47.5" y2="-82.3"/>
           </g>
-          <g fill="none" stroke="rgba(255,209,0,.28)" stroke-width="6">
+          <g fill="none" stroke="rgba(15,98,254,.35)" stroke-width="6">
             <circle cx="47.5" cy="-82.3" r="30"/><circle cx="95" cy="0" r="30"/><circle cx="47.5" cy="82.3" r="30"/>
             <circle cx="-47.5" cy="82.3" r="30"/><circle cx="-95" cy="0" r="30"/><circle cx="-47.5" cy="-82.3" r="30"/>
           </g>
@@ -160,7 +162,7 @@
           <polygon points="0,-46 40,-23 40,23 0,46 -40,23 -40,-23" fill="#DCE7F5" stroke="#B9C9DE" stroke-width="2"/>
           <polygon points="0,-66 12,-46 -12,-46" fill="#C62828"/><circle cx="0" cy="0" r="6" fill="#FFD100"/>
         </svg>
-        <svg id="moveArrow" viewBox="-50 -50 100 100"><line x1="0" y1="0" x2="36" y2="0" stroke="#FFD100" stroke-width="3" stroke-linecap="round"/><polygon points="36,-6 48,0 36,6" fill="#FFD100"/></svg>
+        <svg id="moveArrow" viewBox="-50 -50 100 100"><line x1="0" y1="0" x2="36" y2="0" stroke="#0F62FE" stroke-width="3" stroke-linecap="round"/><polygon points="36,-6 48,0 36,6" fill="#0F62FE"/></svg>
       </div>
       <div class="cl">ATTITUDE</div>
       <div class="cbtns">
