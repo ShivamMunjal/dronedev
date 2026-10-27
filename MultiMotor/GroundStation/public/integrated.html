@@ -49,7 +49,7 @@
   .scene{position:absolute;inset:0;perspective:1200px;perspective-origin:50% 45%}
   .craft{position:absolute;left:50%;top:50%;will-change:transform;transform-origin:center}
   #craftImg{width:76%;margin-left:-38%;margin-top:-20.8%;filter:drop-shadow(0 22px 26px rgba(0,0,0,.55))}
-  #hexSvg{width:60%;height:60%;margin-left:-30%;margin-top:-30%;display:none;filter:drop-shadow(0 22px 26px rgba(0,0,0,.55))}
+  #hexSvg{width:66%;height:66%;margin-left:-33%;margin-top:-33%;display:none;filter:drop-shadow(0 22px 26px rgba(0,0,0,.55))}
   .ring{position:absolute;left:50%;top:50%;width:84%;height:84%;margin:-42% 0 0 -42%;border:1px dashed #D8DEE8;border-radius:50%}
   .badgeFR{position:absolute;right:10px;top:8px;font-size:10px;color:var(--dim);border:1px solid var(--border);border-radius:6px;padding:2px 7px}
   .tg{position:absolute;right:10px;bottom:10px;display:flex;gap:5px}
@@ -101,7 +101,7 @@
   .wheel .knob{width:30px;height:30px;margin:-17px 0 0 -17px;border:2px solid var(--amber);background:#FFF1BF;box-shadow:0 0 12px rgba(255,209,0,.45)}
   .center{flex:0 0 32%;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
   .craftWrap{position:relative;width:min(200px,24vw);aspect-ratio:1;display:grid;place-items:center;perspective:600px}
-  #mini{width:92%;will-change:transform;transform-origin:center;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
+  #mini{width:100%;will-change:transform;transform-origin:center;filter:drop-shadow(0 6px 10px rgba(0,0,0,.55))}
   #moveArrow{position:absolute;inset:0;margin:auto;width:92%;height:92%;opacity:0;transform:rotate(0deg);pointer-events:none}
   .cl{font-size:9px;letter-spacing:1px;color:var(--dim);margin-top:2px}
 
@@ -168,13 +168,13 @@
       <div class="ring"></div>
       <div class="scene">
         <img id="craftImg" class="craft" src="craft.png" alt="craft">
-        <svg id="hexSvg" class="craft" viewBox="-120 -120 240 240">
+        <svg id="hexSvg" class="craft" viewBox="-132 -132 264 264">
           <g stroke="#C9D6E8" stroke-width="9" stroke-linecap="round">
             <line x1="0" y1="0" x2="47.5" y2="-82.3"/><line x1="0" y1="0" x2="95" y2="0"/>
             <line x1="0" y1="0" x2="47.5" y2="82.3"/><line x1="0" y1="0" x2="-47.5" y2="82.3"/>
             <line x1="0" y1="0" x2="-95" y2="0"/><line x1="0" y1="0" x2="-47.5" y2="-82.3"/>
           </g>
-          <g fill="none" stroke="rgba(255,209,0,.28)" stroke-width="6">
+          <g fill="none" stroke="#FFD100" stroke-width="7" style="filter:drop-shadow(0 0 3px rgba(255,209,0,.85))">
             <circle cx="47.5" cy="-82.3" r="30"/><circle cx="95" cy="0" r="30"/><circle cx="47.5" cy="82.3" r="30"/>
             <circle cx="-47.5" cy="82.3" r="30"/><circle cx="-95" cy="0" r="30"/><circle cx="-47.5" cy="-82.3" r="30"/>
           </g>
@@ -253,13 +253,13 @@
     <div id="axesJoystick" class="joywrap" style="display:none">
       <div class="joybox"><div class="pad" id="padAngle"><div class="knob"></div></div><div class="jl">ANGLE · roll/pitch</div></div>
       <div class="center"><div class="craftWrap">
-        <svg id="mini" viewBox="-120 -120 240 240">
+        <svg id="mini" viewBox="-132 -132 264 264">
           <g stroke="#C9D6E8" stroke-width="9" stroke-linecap="round">
             <line x1="0" y1="0" x2="47.5" y2="-82.3"/><line x1="0" y1="0" x2="95" y2="0"/>
             <line x1="0" y1="0" x2="47.5" y2="82.3"/><line x1="0" y1="0" x2="-47.5" y2="82.3"/>
             <line x1="0" y1="0" x2="-95" y2="0"/><line x1="0" y1="0" x2="-47.5" y2="-82.3"/>
           </g>
-          <g fill="none" stroke="rgba(255,209,0,.28)" stroke-width="6">
+          <g fill="none" stroke="#FFD100" stroke-width="7" style="filter:drop-shadow(0 0 3px rgba(255,209,0,.85))">
             <circle cx="47.5" cy="-82.3" r="30"/><circle cx="95" cy="0" r="30"/><circle cx="47.5" cy="82.3" r="30"/>
             <circle cx="-47.5" cy="82.3" r="30"/><circle cx="-95" cy="0" r="30"/><circle cx="-47.5" cy="-82.3" r="30"/>
           </g>
