@@ -41,3 +41,7 @@ IMU/Middlewares/MotionFX/Release_Notes.html
 
 # Local recovery backups (may contain ST proprietary libs - SLA0077)
 _backup/
+
+# STM32N6 port: vendored ST SDKs (huge, reproducible - not source)
+MultiMotor_N6/CubeN6/
+MultiMotor_N6/open_pin_data/
