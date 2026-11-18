@@ -75,7 +75,7 @@ board while it is USB-powered; power the pack separately and share GND).
 
 | Device | Address | Wiring |
 |---|---|---|
-| **INA228 / PM02D PMU** | `0x40` (A0/A1 set by board) | SDA→D14, SCL→D15, VCC→3V3, GND→GND |
+| **INA228 / PM02D (HV) PMU** | `0x45` (INA226 variant: `0x41`) | SDA→D14, SCL→D15, VCC→3V3, GND→GND |
 | **ISM330IS IMU** | `0x6A` (SA0=GND, CS→3V3 for I2C mode) | SDA→D14, SCL→D15, VDD→3V3, GND→GND |
 
 * Two addresses on one bus — no conflict; the N6 port drives **one** I2C1

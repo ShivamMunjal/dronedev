@@ -26,6 +26,8 @@ LDFLAGS := $(CPU) -Tfsbl/STM32N657X0HXQ_AXISRAM2_fsbl.ld --specs=nano.specs --sp
            -Wl,--gc-sections -Wl,-Map=build/fsbl.map --entry=Reset_Handler
 
 SRCS := fsbl/Src/main.c \
+        fsbl/Src/board_n6.c \
+        fsbl/Src/sensors.c \
         fsbl/Src/stm32n6xx_it.c \
         fsbl/Src/stm32n6xx_hal_msp.c \
         fsbl/Src/system_stm32n6xx_fsbl.c \
@@ -40,7 +42,11 @@ SRCS := fsbl/Src/main.c \
         $(HAL)/Src/stm32n6xx_hal_dma.c \
         $(HAL)/Src/stm32n6xx_hal_dma_ex.c \
         $(HAL)/Src/stm32n6xx_hal_uart.c \
-        $(HAL)/Src/stm32n6xx_hal_uart_ex.c
+        $(HAL)/Src/stm32n6xx_hal_uart_ex.c \
+        $(HAL)/Src/stm32n6xx_hal_tim.c \
+        $(HAL)/Src/stm32n6xx_hal_tim_ex.c \
+        $(HAL)/Src/stm32n6xx_hal_i2c.c \
+        $(HAL)/Src/stm32n6xx_hal_i2c_ex.c
 
 OBJS := $(patsubst %.c,build/%.o,$(notdir $(SRCS))) build/startup_stm32n657x0hxq_fsbl.o
 VPATH := fsbl/Src $(HAL)/Src fsbl
