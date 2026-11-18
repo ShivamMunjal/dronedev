@@ -68,7 +68,7 @@ build/FSBL-trusted.bin: build/fsbl.bin
 
 flash: build/FSBL-trusted.bin
 	$(CP)/STM32_Programmer_CLI -c port=SWD mode=UR -el $(EXTLDR) \
-	    -w build/FSBL-trusted.bin 0x70000000 -align 4 -v -rst
+	    -w build/FSBL-trusted.bin 0x70000000 -v
 
 size: build/fsbl.elf
 	$(SIZE) -A build/fsbl.elf | head -20

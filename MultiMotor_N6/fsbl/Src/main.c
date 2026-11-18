@@ -8,6 +8,8 @@
 #include "main.h"
 #include <string.h>
 
+extern uint32_t g_pfnVectors[];   /* vector table at start of the FSBL image */
+
 void SystemClock_Config(void);
 void Error_Handler(void);
 
@@ -63,6 +65,10 @@ static void TX(const char *s)
 
 int main(void)
 {
+  /* FSBL runs from AXISRAM2: point the vector table at our own image */
+  SCB->VTOR = (uint32_t)g_pfnVectors;
+  __DSB(); __ISB();
+
   SCB_EnableICache();
   SCB_EnableDCache();
   HAL_Init();
