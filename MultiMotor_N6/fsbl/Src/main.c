@@ -17,6 +17,24 @@ void Error_Handler(void);
 #define LED_B GPIO_PIN_8   /* PG8  blue   */
 #define LED_R GPIO_PIN_10  /* PG10 red    */
 
+/* ── raw LED (no HAL, works before clocks/SysTick) ───────────────────────── */
+static void raw_led_init(void)
+{
+  RCC->AHB4ENR |= RCC_AHB4ENR_GPIOGEN;
+  (void)RCC->AHB4ENR;
+  GPIOG->MODER &= ~((3u << 0) | (3u << 16) | (3u << 20));
+  GPIOG->MODER |=  ((1u << 0) | (1u << 16) | (1u << 20));
+  GPIOG->OTYPER &= ~((1u << 0) | (1u << 8) | (1u << 10));
+  GPIOG->BSRR = (1u << 0) | (1u << 8) | (1u << 10);   /* all off (act-low) */
+}
+static inline void raw_led(int pin, int on)
+{
+  GPIOG->BSRR = on ? (1u << (pin + 16)) : (1u << pin);
+}
+static void raw_delay(volatile uint32_t n) { while (n--) __NOP(); }
+
+
+
 static UART_HandleTypeDef huart1;
 static volatile uint32_t ticks_ms;
 
@@ -65,16 +83,23 @@ static void TX(const char *s)
 
 int main(void)
 {
+  /* stage marker: reached main() at all (green on) */
+  raw_led_init();
+  raw_led(0, 1);
+
   /* FSBL runs from AXISRAM2: point the vector table at our own image */
   SCB->VTOR = (uint32_t)g_pfnVectors;
   __DSB(); __ISB();
 
   SCB_EnableICache();
   SCB_EnableDCache();
+
+  raw_led(0, 0); raw_led(8, 1);        /* stage: SysTick/clock config next (blue) */
   HAL_Init();
-  SystemClock_Config();
+  SystemClock_Config();                /* hangs/fails -> Error_Handler (fast red) */
 
   LED_Init();
+  raw_led(8, 0);                       /* stage: 600 MHz OK, UART next */
   UART1_Init();
 
   TX("\r\n# NUCLEO-N657X0-Q MultiMotor_N6 bring-up\r\n");
@@ -176,7 +201,11 @@ void SystemClock_Config(void)
 void Error_Handler(void)
 {
   __disable_irq();
-  for (;;) { if (LED_R) { } }   /* red LED stays on if we get here */
+  raw_led_init();
+  for (;;) {                            /* fast red blink = clock/PLL/init failed */
+    raw_led(10, 1); raw_delay(300000);
+    raw_led(10, 0); raw_delay(300000);
+  }
 }
 
 #ifdef USE_FULL_ASSERT
