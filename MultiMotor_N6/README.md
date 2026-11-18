@@ -63,3 +63,36 @@ XIP application (if used) is written **`FSBL-trusted @0x70000000`** and
 | motors | TIM16/17/14/1 ×6 | **TIM1×4 (PE9,PE11,PF6,PC12) + TIM14 (PG2) + TIM16 (PA3)** |
 | sensors | I2C1 PMU + I2C2 IMU | **single I2C1 (D14/D15)** with both |
 | AHRS | MotionFX CM0P `.a` | portable Mahony (MotionFX has no M55 build) |
+
+---
+
+## Bring-up status (needs one physical step)
+
+**Done:** FSBL app builds (`make` → `build/fsbl.elf`, 21 588 B text) and signs
+(`make trusted` → `build/FSBL-trusted.bin`). Sources: ST template clock tree
+(600 MHz) + our VCP console + LEDs.
+
+**Blocked:** flashing failed at `Erasing external memory sector 0`, and every
+CubeProgrammer memory access fails:
+
+| probe | result |
+|---|---|
+| `-c mode=UR` (device ID, halt) | ✅ id 0x486 Rev Z |
+| memory read/write (RAM @0x34180400, XSPI @0x70000000) | ❌ AP access error |
+| `mode=NORMAL/HOTPLUG` (outside reset) | ❌ `Unable to get core ID` |
+| `debugauth` discovery | target is **OPEN mode** — DA is not the blocker |
+| external loader (`MX25UM51245G…stldr`) | ❌ can't access flash |
+
+**Diagnosis:** UM3417 Table 9 — boot source = JP1(BOOT0)/JP2(BOOT1):
+`BOOT1=1 → development boot`, `0,0 → flash boot`. Board shipped in **flash
+boot**; the external flash image is (still) unreadable/invalid, so BootROM never
+completes → the core stays locked up → only `mode=UR` connects and no memory
+access works (loader executes on the core, so flash ops fail too).
+
+**Action needed from you (jumpers + power):**
+1. Move **JP2 (BOOT1) to position 2-3** = development boot (JP1/BOOT0 stays 1-2).
+2. Unplug/replug the ST-LINK USB-C (CN10) — full power cycle.
+3. Ping me → next commands are already in the Makefile:
+   - halt, write `build/fsbl.bin` to `0x34180400`, start it (dev-mode run),
+   - verify banner on `/dev/cu.usbmodem1102` (115200),
+   - `make flash` to restore the external flash, then move JP2 back to 1-2.
