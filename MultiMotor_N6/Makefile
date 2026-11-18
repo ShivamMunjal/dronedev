@@ -64,7 +64,7 @@ build:
 
 trusted: build/FSBL-trusted.bin
 build/FSBL-trusted.bin: build/fsbl.bin
-	$(CP)/STM32_SigningTool_CLI -bin $< -nk -of 0x80000000 -t fsbl -o $@ -hv 2.3 -dump $@ | tail -5
+	$(CP)/STM32_SigningTool_CLI -bin $< -nk -of 0x80000000 -t fsbl -align -o $@ -hv 2.3 -dump $@ | tail -5
 
 flash: build/FSBL-trusted.bin
 	$(CP)/STM32_Programmer_CLI -c port=SWD mode=UR -el $(EXTLDR) \
