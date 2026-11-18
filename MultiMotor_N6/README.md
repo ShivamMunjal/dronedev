@@ -66,33 +66,39 @@ XIP application (if used) is written **`FSBL-trusted @0x70000000`** and
 
 ---
 
-## Bring-up status (needs one physical step)
+## Bring-up status — **BOOTS from external flash** ✅
 
-**Done:** FSBL app builds (`make` → `build/fsbl.elf`, 21 588 B text) and signs
-(`make trusted` → `build/FSBL-trusted.bin`). Sources: ST template clock tree
-(600 MHz) + our VCP console + LEDs.
+```
+$ cd MultiMotor_N6 && make && make trusted && make flash
+$ python3 - <<'E'
+import serial; s=serial.Serial('/dev/cu.usbmodem1102',115200,timeout=1)
+s.write(b'P\r\n'); print(s.read(200))
+E
+b'PONG N657 id=0x486\r\n\r\nN6 alive  t=87356\r\n'
+```
 
-**Blocked:** flashing failed at `Erasing external memory sector 0`, and every
-CubeProgrammer memory access fails:
+Verified: boots autonomously from Octo-SPI, USART1 VCP console 115200, `P`/`A`/`D`
+commands answered, 1 Hz `N6 alive` heartbeat, LEDs work.
 
-| probe | result |
+### The two things that cost the most time (documented so they never recur)
+1. **`-align` belongs to `STM32_SigningTool_CLI`, not CubeProgrammer.** Without it the
+   payload lands at flash `0x240`; the BootROM reads it at **`0x400`** → silent hang
+   (green LED never runs, `mode=UR` memory reads fail, loader "failed to erase").
+   Correct: `STM32_SigningTool_CLI -bin x.bin -nk -of 0x80000000 -t fsbl -align ...`
+2. **Jumper reality:** JP3 (STLK_RST) is OFF ⇒ the debugger *cannot* reset the MCU;
+   only **B2** / replug works. JP2=2-3 (dev boot) is needed to flash when the previous
+   image is bad; JP2=1-2 (flash boot) to run normally.
+
+### LED diagnostics built into the firmware (raw GPIO, pre-HAL)
+| LED | meaning |
 |---|---|
-| `-c mode=UR` (device ID, halt) | ✅ id 0x486 Rev Z |
-| memory read/write (RAM @0x34180400, XSPI @0x70000000) | ❌ AP access error |
-| `mode=NORMAL/HOTPLUG` (outside reset) | ❌ `Unable to get core ID` |
-| `debugauth` discovery | target is **OPEN mode** — DA is not the blocker |
-| external loader (`MX25UM51245G…stldr`) | ❌ can't access flash |
+| green PG0 blips on at `main()` start | CPU reached our code |
+| blue PG8 on | past caches, entering `HAL_Init`/clock config |
+| **green PG0 ~1 Hz** | running normally (heartbeat) |
+| **red PG10 fast blink** | `Error_Handler` (clock/supply config failed) |
 
-**Diagnosis:** UM3417 Table 9 — boot source = JP1(BOOT0)/JP2(BOOT1):
-`BOOT1=1 → development boot`, `0,0 → flash boot`. Board shipped in **flash
-boot**; the external flash image is (still) unreadable/invalid, so BootROM never
-completes → the core stays locked up → only `mode=UR` connects and no memory
-access works (loader executes on the core, so flash ops fail too).
-
-**Action needed from you (jumpers + power):**
-1. Move **JP2 (BOOT1) to position 2-3** = development boot (JP1/BOOT0 stays 1-2).
-2. Unplug/replug the ST-LINK USB-C (CN10) — full power cycle.
-3. Ping me → next commands are already in the Makefile:
-   - halt, write `build/fsbl.bin` to `0x34180400`, start it (dev-mode run),
-   - verify banner on `/dev/cu.usbmodem1102` (115200),
-   - `make flash` to restore the external flash, then move JP2 back to 1-2.
+### Next (port continues here)
+1. 6× PWM (TIM1 CH1/2/3/4 = PE9/PE11/PF6/PC12, TIM14=PG2, TIM16=PA3) @500 Hz, 1000–2000 µs
+2. I2C1 on D14/D15 (PC1/PH9): INA228 `0x40` + ISM330IS `0x6A`
+3. Port console protocol (`? T B E Q X M CFG` …) + mixer from `../MultiMotor`
+4. AHRS: portable Mahony (MotionFX is CM0P-only)
